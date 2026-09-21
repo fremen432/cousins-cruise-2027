@@ -690,12 +690,12 @@
   }
 
   // ---------- Mobile bottom tab bar (thumb reach) ----------
-  // Instagram-style bar pinned to the bottom edge on phones, so the controls you reach for most
-  // sit under your thumb instead of up in the header: Contents (opens the drawer), Prev/Next
-  // section (jump between top-level H2s), Map (only on guides that have a Trip Map) and the
-  // light/dark toggle. Built here rather than hand-added to each guide's HTML so every guide
+  // Floating capsule on phones, so the controls you reach for most sit under your thumb instead
+  // of up in the header: Contents (opens the drawer), Map (only on guides that have a Trip Map;
+  // tap again for fullscreen), Home (top of the page) and Prev/Next section (jump between
+  // top-level H2s). Built here rather than hand-added to each guide's HTML so every guide
   // gets it the moment this shared script updates. It drives the EXISTING buttons/anchors
-  // (#sg-mobile-menu-toggle, #sg-theme-toggle, #sg-tripmap) by clicking/scrolling to them, so
+  // (#sg-mobile-menu-toggle, #sg-tripmap-fullscreen, #sg-tripmap) by clicking/scrolling to them, so
   // there's no second copy of any state to keep in sync. Hidden above 860px via CSS (same
   // breakpoint as the drawer). Icons are inline SVG for the same reason as the Refresh button:
   // not every guide's sprite defines every icon.
@@ -711,7 +711,7 @@
       up: svg('<path d="m18 15-6-6-6 6"/>'),
       down: svg('<path d="m6 9 6 6 6-6"/>'),
       map: svg('<path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/>'),
-      theme: svg('<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/>')
+      home: svg('<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>')
     };
 
     function topLevelHeadings() {
@@ -737,11 +737,12 @@
       if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
+    // Order, left to right: Contents, Map (only on guides with a Trip Map), Home (jump to the very
+    // top), Prev, Next. The light/dark toggle isn't on the bar; it stays in the contents drawer's
+    // top bar, where it always lived on mobile.
     var tabs = [
       { key: "contents", label: "Contents", icon: ICON.menu, run: function () {
-          var b = document.getElementById("sg-mobile-menu-toggle"); if (b) b.click(); } },
-      { key: "prev", label: "Prev", icon: ICON.up, run: function () { jump(-1); } },
-      { key: "next", label: "Next", icon: ICON.down, run: function () { jump(1); } }
+          var b = document.getElementById("sg-mobile-menu-toggle"); if (b) b.click(); } }
     ];
     var mapEl = document.getElementById("sg-tripmap");
     if (mapEl) tabs.push({ key: "map", label: "Map", icon: ICON.map, run: function () {
@@ -757,8 +758,10 @@
       head = head && head.querySelector("h2");
       (head || mapEl).scrollIntoView({ behavior: "smooth", block: "start" });
     } });
-    tabs.push({ key: "theme", label: "Theme", icon: ICON.theme, run: function () {
-      var b = document.getElementById("sg-theme-toggle"); if (b) b.click(); } });
+    tabs.push({ key: "home", label: "Home", icon: ICON.home, run: function () {
+      window.scrollTo({ top: 0, behavior: "smooth" }); } });
+    tabs.push({ key: "prev", label: "Prev", icon: ICON.up, run: function () { jump(-1); } });
+    tabs.push({ key: "next", label: "Next", icon: ICON.down, run: function () { jump(1); } });
 
     var bar = document.createElement("nav");
     bar.id = "sg-tabbar";
