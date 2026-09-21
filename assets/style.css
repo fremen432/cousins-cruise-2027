@@ -1366,41 +1366,56 @@ body.sg-tripmap-fs-lock { overflow: hidden; }
 }
 
 /* ---------- Mobile bottom tab bar (thumb reach) — built by initBottomBar() in script.js ----------
-   Metrics follow Apple's iPhone HIG (same as the NRFTW wiki's bar): 49pt row, 24pt icons, 12pt
-   labels, 16pt side margins, 44pt minimum touch target. The home-indicator zone under the row
-   comes from env(safe-area-inset-bottom) — never hardcoded — and only resolves if the guide's
-   viewport meta carries viewport-fit=cover. Equal-width columns (flex:1 1 0) span the full bar. */
+   A floating capsule, like Instagram's bar or the iPhone's Dynamic Island: all the controls sit
+   nested inside one rounded pill that hovers above the bottom edge rather than being docked to
+   it. Icon-only (labels stay as aria-labels for screen readers). Every tap target is 44pt+ and
+   icons are 24pt per Apple's HIG. The gap below the pill is env(safe-area-inset-bottom) plus a
+   fixed float distance — the inset only resolves if the guide's viewport meta carries
+   viewport-fit=cover. Frosted glass so the page stays faintly visible through it. */
 .sg-tabbar { display: none; }
 @media (max-width: 860px) {
   .sg-tabbar {
-    display: flex;
-    position: fixed; left: 0; right: 0; bottom: 0;
+    --sg-tabbar-h: 58px;
+    --sg-tabbar-float: 12px;
+    display: flex; align-items: center; gap: 2px;
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + var(--sg-tabbar-float));
+    width: min(calc(100% - 32px), 340px);
+    height: var(--sg-tabbar-h);
+    padding: 6px;
     z-index: 45; /* above content, below the TOC drawer (60), lightbox and fullscreen map */
-    padding: 0 max(16px, env(safe-area-inset-right)) env(safe-area-inset-bottom, 0px) max(16px, env(safe-area-inset-left));
+    border-radius: 999px;
     background: var(--bg-elevated);
-    background: color-mix(in srgb, var(--bg-elevated) 82%, transparent);
-    -webkit-backdrop-filter: saturate(180%) blur(20px);
-    backdrop-filter: saturate(180%) blur(20px);
-    border-top: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg-elevated) 88%, transparent);
+    -webkit-backdrop-filter: saturate(180%) blur(22px);
+    backdrop-filter: saturate(180%) blur(22px);
+    border: 1px solid color-mix(in srgb, var(--text-dim) 28%, transparent);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38), 0 2px 6px rgba(0, 0, 0, 0.25),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
   .sg-tab {
-    flex: 1 1 0; min-width: 44px; max-width: 96px; height: 49px; margin: 0 auto;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-    padding: 4px 2px;
-    background: transparent; border: none; border-radius: 10px;
-    color: var(--text-dim); font: inherit; font-size: 12px; line-height: 1; cursor: pointer;
+    flex: 1 1 0; min-width: 44px; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0; margin: 0;
+    background: transparent; border: none; border-radius: 999px;
+    color: var(--text); opacity: 0.85; cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
-    transition: background-color 0.12s ease, color 0.12s ease;
+    transition: background-color 0.12s ease, color 0.12s ease, opacity 0.12s ease, transform 0.12s ease;
   }
   /* explicit pressed feedback, since the native tap highlight is suppressed above */
-  .sg-tab:active { background: var(--accent-soft); color: var(--accent); }
+  .sg-tab:active { background: var(--accent-soft); color: var(--accent); opacity: 1; transform: scale(0.92); }
   .sg-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   .sg-tab-ico { width: 24px; height: 24px; flex: none; }
-  .sg-tab-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .sg-tab-label { display: none; }
 
-  /* clear the bar: room under the last section, and lift the floating back-to-top above it */
-  .sg-main-wrap { padding-bottom: calc(49px + env(safe-area-inset-bottom, 0px)); }
-  .sg-back-to-top { bottom: calc(49px + env(safe-area-inset-bottom, 0px) + 1rem); }
+  /* clear the pill: room under the last section, and lift the floating back-to-top above it */
+  .sg-main-wrap {
+    padding-bottom: calc(var(--sg-tabbar-h, 58px) + 12px + env(safe-area-inset-bottom, 0px) + 20px);
+  }
+  .sg-back-to-top {
+    bottom: calc(58px + 12px + env(safe-area-inset-bottom, 0px) + 14px);
+    right: 16px;
+  }
 }
 @media print { .sg-tabbar { display: none !important; } }
