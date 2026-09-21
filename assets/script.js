@@ -718,15 +718,20 @@
       return Array.prototype.slice.call(main.querySelectorAll(":scope > section > h2, :scope > * > section > h2, :scope h2"))
         .filter(function (h, i, a) { return a.indexOf(h) === i && !h.closest("details"); });
     }
+    // Headings park at their own scroll-margin-top (the sticky header's height) after a jump, so
+    // "where the current heading is" means top ≈ that offset, NOT top ≈ 0. Comparing against 0
+    // made Next re-pick the heading it had just landed on (its top sits at ~offset > 0), so it
+    // never advanced. Everything below is measured relative to the real offset instead.
     function jump(dir) {
       var hs = topLevelHeadings();
       if (!hs.length) return;
-      var probe = 24; // px of slop so a heading sitting right at the top counts as "current"
+      var offset = parseFloat(getComputedStyle(hs[0]).scrollMarginTop) || 0;
+      var slop = 8; // px tolerance around "parked at the header"
       var target = null, i;
       if (dir > 0) {
-        for (i = 0; i < hs.length; i++) if (hs[i].getBoundingClientRect().top > probe + 8) { target = hs[i]; break; }
+        for (i = 0; i < hs.length; i++) if (hs[i].getBoundingClientRect().top > offset + slop) { target = hs[i]; break; }
       } else {
-        for (i = hs.length - 1; i >= 0; i--) if (hs[i].getBoundingClientRect().top < -probe) { target = hs[i]; break; }
+        for (i = hs.length - 1; i >= 0; i--) if (hs[i].getBoundingClientRect().top < offset - slop) { target = hs[i]; break; }
         if (!target) { window.scrollTo({ top: 0, behavior: "smooth" }); return; }
       }
       if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -740,7 +745,18 @@
     ];
     var mapEl = document.getElementById("sg-tripmap");
     if (mapEl) tabs.push({ key: "map", label: "Map", icon: ICON.map, run: function () {
-      mapEl.scrollIntoView({ behavior: "smooth", block: "start" }); } });
+      // First tap snaps to the Trip Map; a second tap while you're still looking at it opens
+      // the map fullscreen (the same button as the map's own fullscreen control). "Still looking
+      // at it" = Map was the last tab tapped AND the map is on screen, so scrolling elsewhere
+      // and tapping Map again snaps back first rather than jumping straight to fullscreen.
+      var r = mapEl.getBoundingClientRect();
+      var onScreen = r.top < window.innerHeight * 0.6 && r.bottom > 120;
+      var fsBtn = document.getElementById("sg-tripmap-fullscreen");
+      if (selected && selected.dataset.tab === "map" && onScreen && fsBtn) { fsBtn.click(); return; }
+      var head = mapEl.closest("section");
+      head = head && head.querySelector("h2");
+      (head || mapEl).scrollIntoView({ behavior: "smooth", block: "start" });
+    } });
     tabs.push({ key: "theme", label: "Theme", icon: ICON.theme, run: function () {
       var b = document.getElementById("sg-theme-toggle"); if (b) b.click(); } });
 
