@@ -759,6 +759,40 @@
       bar.appendChild(btn);
     });
     document.body.appendChild(bar);
+
+    // Selection lens: one small oval that sits behind the selected icon and glides to whichever
+    // tab is tapped next (position driven by CSS vars + a transform transition in style.css).
+    // Hidden until the first tap; that first tap places it without sliding in from nowhere.
+    var lens = document.createElement("span");
+    lens.className = "sg-tab-lens";
+    lens.setAttribute("aria-hidden", "true");
+    bar.insertBefore(lens, bar.firstChild);
+    var selected = null;
+    function placeLens(animate) {
+      if (!selected) return;
+      var lw = lens.offsetWidth, lh = lens.offsetHeight;
+      var x = selected.offsetLeft + (selected.offsetWidth - lw) / 2;
+      var y = selected.offsetTop + (selected.offsetHeight - lh) / 2;
+      if (!animate) lens.classList.add("sg-tab-lens-instant");
+      lens.style.transform = "translate(" + x + "px," + y + "px)";
+      if (!animate) {
+        void lens.offsetWidth; // flush so the un-animated jump commits before transitions return
+        lens.classList.remove("sg-tab-lens-instant");
+      }
+    }
+    function select(btn) {
+      var first = !selected;
+      if (selected) selected.classList.remove("sg-tab-selected");
+      selected = btn;
+      btn.classList.add("sg-tab-selected");
+      placeLens(!first);
+      lens.classList.add("sg-tab-lens-on");
+    }
+    Array.prototype.forEach.call(bar.querySelectorAll(".sg-tab"), function (b) {
+      b.addEventListener("click", function () { select(b); });
+    });
+    // The bar is display:none above 860px (all offsets read 0), so re-place on resize/rotate.
+    window.addEventListener("resize", function () { placeLens(false); });
   }
 
   // ---------- Refresh Page button (lives in the TOC rail, so it's reachable from both the
