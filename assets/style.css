@@ -1376,9 +1376,12 @@ body.sg-tripmap-fs-lock { overflow: hidden; }
 @media (max-width: 860px) {
   .sg-tabbar {
     --sg-tabbar-h: 58px;
-    --sg-tabbar-float: 12px;
+    --sg-tabbar-float: 6px;
     display: flex; align-items: center; gap: 2px;
-    position: fixed; left: 50%; transform: translateX(-50%);
+    /* centered with auto margins, NOT translateX(-50%): the individual `scale` property is applied
+       before `transform`, so a translate here would get scaled too and the compact state would
+       drift off-center */
+    position: fixed; left: 0; right: 0; margin: 0 auto;
     bottom: calc(env(safe-area-inset-bottom, 0px) + var(--sg-tabbar-float));
     width: min(calc(100% - 32px), 340px);
     height: var(--sg-tabbar-h);
@@ -1433,10 +1436,10 @@ body.sg-tripmap-fs-lock { overflow: hidden; }
 
   /* clear the pill: room under the last section, and lift the floating back-to-top above it */
   .sg-main-wrap {
-    padding-bottom: calc(var(--sg-tabbar-h, 58px) + 12px + env(safe-area-inset-bottom, 0px) + 20px);
+    padding-bottom: calc(var(--sg-tabbar-h, 58px) + 6px + env(safe-area-inset-bottom, 0px) + 20px);
   }
   .sg-back-to-top {
-    bottom: calc(58px + 12px + env(safe-area-inset-bottom, 0px) + 14px);
+    bottom: calc(58px + 6px + env(safe-area-inset-bottom, 0px) + 14px);
     right: 16px;
   }
 }
