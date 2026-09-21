@@ -810,6 +810,10 @@
     Array.prototype.forEach.call(bar.querySelectorAll(".sg-tab"), function (b) {
       b.addEventListener("click", function () { select(b); });
     });
+    // Start on Home: it's where every page load begins (top of the page), so the lens is already
+    // resting on it. First selection places it without a slide.
+    var homeTab = bar.querySelector('.sg-tab[data-tab="home"]');
+    if (homeTab) select(homeTab);
     // The bar is display:none above 860px (all offsets read 0), so re-place on resize/rotate.
     window.addEventListener("resize", function () { placeLens(false); });
 
