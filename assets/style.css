@@ -1392,7 +1392,10 @@ body.sg-tripmap-fs-lock { overflow: hidden; }
     border: 1px solid color-mix(in srgb, var(--text-dim) 28%, transparent);
     box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38), 0 2px 6px rgba(0, 0, 0, 0.25),
                 inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    transform-origin: 50% 100%; /* shrink toward the bottom edge, not toward its own center */
+    transition: scale 0.3s cubic-bezier(0.32, 0.72, 0, 1);
   }
+  .sg-tabbar.sg-tabbar-compact { scale: 0.84; }
   .sg-tab {
     flex: 1 1 0; min-width: 44px; height: 100%;
     display: flex; align-items: center; justify-content: center;
@@ -1425,7 +1428,7 @@ body.sg-tripmap-fs-lock { overflow: hidden; }
   .sg-tab.sg-tab-selected { color: var(--accent); opacity: 1; }
   .sg-tab.sg-tab-selected .sg-tab-ico { transform: scale(1.18); }
   @media (prefers-reduced-motion: reduce) {
-    .sg-tab-lens, .sg-tab-ico { transition: none; }
+    .sg-tab-lens, .sg-tab-ico, .sg-tabbar { transition: none; }
   }
 
   /* clear the pill: room under the last section, and lift the floating back-to-top above it */

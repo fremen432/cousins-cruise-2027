@@ -793,6 +793,23 @@
     });
     // The bar is display:none above 860px (all offsets read 0), so re-place on resize/rotate.
     window.addEventListener("resize", function () { placeLens(false); });
+
+    // Scroll-aware size: the capsule shrinks a little while you scroll down (reading, wants
+    // the room) and grows back as soon as you scroll up or return to the very top. Scale only
+    // (style.css), so layout — and therefore the lens's offset math — is unaffected. A small
+    // dead-zone (6px) keeps finger jitter and momentum wobble from flickering it.
+    var lastY = window.pageYOffset, ticking = false;
+    window.addEventListener("scroll", function () {
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(function () {
+        var y = window.pageYOffset, dy = y - lastY;
+        if (y <= 40 || dy < -6) bar.classList.remove("sg-tabbar-compact");
+        else if (dy > 6) bar.classList.add("sg-tabbar-compact");
+        if (Math.abs(dy) > 6 || y <= 40) lastY = y;
+        ticking = false;
+      });
+    }, { passive: true });
   }
 
   // ---------- Refresh Page button (lives in the TOC rail, so it's reachable from both the
