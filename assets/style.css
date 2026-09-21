@@ -1364,3 +1364,43 @@ body.sg-tripmap-fs-lock { overflow: hidden; }
   .sg-main { padding: 0; }
   a { color: inherit; text-decoration: none; }
 }
+
+/* ---------- Mobile bottom tab bar (thumb reach) — built by initBottomBar() in script.js ----------
+   Metrics follow Apple's iPhone HIG (same as the NRFTW wiki's bar): 49pt row, 24pt icons, 12pt
+   labels, 16pt side margins, 44pt minimum touch target. The home-indicator zone under the row
+   comes from env(safe-area-inset-bottom) — never hardcoded — and only resolves if the guide's
+   viewport meta carries viewport-fit=cover. Equal-width columns (flex:1 1 0) span the full bar. */
+.sg-tabbar { display: none; }
+@media (max-width: 860px) {
+  .sg-tabbar {
+    display: flex;
+    position: fixed; left: 0; right: 0; bottom: 0;
+    z-index: 45; /* above content, below the TOC drawer (60), lightbox and fullscreen map */
+    padding: 0 max(16px, env(safe-area-inset-right)) env(safe-area-inset-bottom, 0px) max(16px, env(safe-area-inset-left));
+    background: var(--bg-elevated);
+    background: color-mix(in srgb, var(--bg-elevated) 82%, transparent);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+    border-top: 1px solid var(--border);
+  }
+  .sg-tab {
+    flex: 1 1 0; min-width: 44px; max-width: 96px; height: 49px; margin: 0 auto;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    padding: 4px 2px;
+    background: transparent; border: none; border-radius: 10px;
+    color: var(--text-dim); font: inherit; font-size: 12px; line-height: 1; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+    transition: background-color 0.12s ease, color 0.12s ease;
+  }
+  /* explicit pressed feedback, since the native tap highlight is suppressed above */
+  .sg-tab:active { background: var(--accent-soft); color: var(--accent); }
+  .sg-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .sg-tab-ico { width: 24px; height: 24px; flex: none; }
+  .sg-tab-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+  /* clear the bar: room under the last section, and lift the floating back-to-top above it */
+  .sg-main-wrap { padding-bottom: calc(49px + env(safe-area-inset-bottom, 0px)); }
+  .sg-back-to-top { bottom: calc(49px + env(safe-area-inset-bottom, 0px) + 1rem); }
+}
+@media print { .sg-tabbar { display: none !important; } }

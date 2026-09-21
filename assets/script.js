@@ -689,6 +689,78 @@
     });
   }
 
+  // ---------- Mobile bottom tab bar (thumb reach) ----------
+  // Instagram-style bar pinned to the bottom edge on phones, so the controls you reach for most
+  // sit under your thumb instead of up in the header: Contents (opens the drawer), Prev/Next
+  // section (jump between top-level H2s), Map (only on guides that have a Trip Map) and the
+  // light/dark toggle. Built here rather than hand-added to each guide's HTML so every guide
+  // gets it the moment this shared script updates. It drives the EXISTING buttons/anchors
+  // (#sg-mobile-menu-toggle, #sg-theme-toggle, #sg-tripmap) by clicking/scrolling to them, so
+  // there's no second copy of any state to keep in sync. Hidden above 860px via CSS (same
+  // breakpoint as the drawer). Icons are inline SVG for the same reason as the Refresh button:
+  // not every guide's sprite defines every icon.
+  function initBottomBar() {
+    var main = document.querySelector(".sg-main");
+    if (!main || document.getElementById("sg-tabbar")) return;
+
+    function svg(paths) {
+      return '<svg class="sg-tab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + paths + '</svg>';
+    }
+    var ICON = {
+      menu: svg('<path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/>'),
+      up: svg('<path d="m18 15-6-6-6 6"/>'),
+      down: svg('<path d="m6 9 6 6 6-6"/>'),
+      map: svg('<path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/>'),
+      theme: svg('<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/>')
+    };
+
+    function topLevelHeadings() {
+      return Array.prototype.slice.call(main.querySelectorAll(":scope > section > h2, :scope > * > section > h2, :scope h2"))
+        .filter(function (h, i, a) { return a.indexOf(h) === i && !h.closest("details"); });
+    }
+    function jump(dir) {
+      var hs = topLevelHeadings();
+      if (!hs.length) return;
+      var probe = 24; // px of slop so a heading sitting right at the top counts as "current"
+      var target = null, i;
+      if (dir > 0) {
+        for (i = 0; i < hs.length; i++) if (hs[i].getBoundingClientRect().top > probe + 8) { target = hs[i]; break; }
+      } else {
+        for (i = hs.length - 1; i >= 0; i--) if (hs[i].getBoundingClientRect().top < -probe) { target = hs[i]; break; }
+        if (!target) { window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+      }
+      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    var tabs = [
+      { key: "contents", label: "Contents", icon: ICON.menu, run: function () {
+          var b = document.getElementById("sg-mobile-menu-toggle"); if (b) b.click(); } },
+      { key: "prev", label: "Prev", icon: ICON.up, run: function () { jump(-1); } },
+      { key: "next", label: "Next", icon: ICON.down, run: function () { jump(1); } }
+    ];
+    var mapEl = document.getElementById("sg-tripmap");
+    if (mapEl) tabs.push({ key: "map", label: "Map", icon: ICON.map, run: function () {
+      mapEl.scrollIntoView({ behavior: "smooth", block: "start" }); } });
+    tabs.push({ key: "theme", label: "Theme", icon: ICON.theme, run: function () {
+      var b = document.getElementById("sg-theme-toggle"); if (b) b.click(); } });
+
+    var bar = document.createElement("nav");
+    bar.id = "sg-tabbar";
+    bar.className = "sg-tabbar";
+    bar.setAttribute("aria-label", "Quick navigation");
+    tabs.forEach(function (t) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "sg-tab";
+      btn.dataset.tab = t.key;
+      btn.setAttribute("aria-label", t.label);
+      btn.innerHTML = t.icon + '<span class="sg-tab-label">' + t.label + '</span>';
+      btn.addEventListener("click", t.run);
+      bar.appendChild(btn);
+    });
+    document.body.appendChild(bar);
+  }
+
   // ---------- Refresh Page button (lives in the TOC rail, so it's reachable from both the
   // desktop sidebar and the mobile hamburger drawer — same element, no separate mobile-only
   // markup needed). Built here rather than hand-added to every guide's HTML so it's live on
@@ -1085,6 +1157,7 @@
     initMobileToc();
     initControlsRelocation();
     initBackToTop();
+    initBottomBar();
     initCarousels();
     initLightbox();
     initRefreshButton();
