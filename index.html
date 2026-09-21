@@ -1,0 +1,957 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cousins Cruise 2027 — Travel Companion</title>
+  <link rel="stylesheet" href="assets/style.css?v=20260920b">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <style>
+    /* Harbor-teal / lighthouse-rust palette for this guide only — a nautical chart feel for an
+       Atlantic Canada & New England cruise, in the same scoped-override style as the Italy
+       (tricolore) and Germany (Schwarz-Rot-Gold) travel companions. Teal reads as "ocean/harbor"
+       for the accent (links, badges, tip callouts, "port" map pins); warning red stays the usual
+       semantic red; sight pins get a warm lighthouse-rust so they're tellable apart from the
+       teal port pins at a glance. */
+    :root {
+      --bg: #f5f7f6;
+      --bg-elevated: #ffffff;
+      --text: #16242a;
+      --text-dim: #57696e;
+      --border: #d8e0e0;
+      --accent: #0f6e7c;
+      --accent-soft: #dcf0f1;
+      --accent-contrast: #ffffff;
+      --code-bg: #eef3f3;
+      --tip-bg: #e3f3f2;
+      --tip-border: #0f6e7c;
+      --formula-bg: #eef0ec;
+      --formula-border: #4a4740;
+      --warning-bg: #fbe7e5;
+      --warning-border: #b3261e;
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      --map-food: #b3261e;
+      --map-poi: #c1611a;
+    }
+    :root[data-theme="dark"] {
+      --bg: #0d1618;
+      --bg-elevated: #142023;
+      --text: #e7f0f0;
+      --text-dim: #9db0b2;
+      --border: #263538;
+      --accent: #4fb8c4;
+      --accent-soft: #163338;
+      --accent-contrast: #06282c;
+      --code-bg: #1a2a2d;
+      --tip-bg: #123236;
+      --tip-border: #4fb8c4;
+      --formula-bg: #23282a;
+      --formula-border: #9a958a;
+      --warning-bg: #3a1e1b;
+      --warning-border: #e0685c;
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+      --map-food: #e0685c;
+      --map-poi: #e2914f;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #0d1618;
+        --bg-elevated: #142023;
+        --text: #e7f0f0;
+        --text-dim: #9db0b2;
+        --border: #263538;
+        --accent: #4fb8c4;
+        --accent-soft: #163338;
+        --accent-contrast: #06282c;
+        --code-bg: #1a2a2d;
+        --tip-bg: #123236;
+        --tip-border: #4fb8c4;
+        --formula-bg: #23282a;
+        --formula-border: #9a958a;
+        --warning-bg: #3a1e1b;
+        --warning-border: #e0685c;
+        --shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+        --map-food: #e0685c;
+        --map-poi: #e2914f;
+      }
+    }
+  </style>
+  <script>
+    (function () {
+      try {
+        var theme = localStorage.getItem("sg-theme");
+        if (theme === "light" || theme === "dark") {
+          document.documentElement.setAttribute("data-theme", theme);
+        }
+        if (localStorage.getItem("sg-toc-collapsed") === "1") {
+          document.documentElement.classList.add("sg-toc-pref-collapsed");
+        }
+      } catch (e) {}
+    })();
+  </script>
+</head>
+<body>
+  <svg style="display:none" aria-hidden="true">
+    <symbol id="icon-info" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" />
+    </symbol>
+    <symbol id="icon-sun" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="4" /><path d="M12 2v2" /><path d="M12 20v2" />
+      <path d="m4.93 4.93 1.41 1.41" /><path d="m17.66 17.66 1.41 1.41" />
+      <path d="M2 12h2" /><path d="M20 12h2" />
+      <path d="m6.34 17.66-1.41 1.41" /><path d="m19.07 4.93-1.41 1.41" />
+    </symbol>
+    <symbol id="icon-moon" viewBox="0 0 24 24">
+      <path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401" />
+    </symbol>
+    <symbol id="icon-menu" viewBox="0 0 24 24">
+      <path d="M4 5h16" /><path d="M4 12h16" /><path d="M4 19h16" />
+    </symbol>
+    <symbol id="icon-chevrons-up-down" viewBox="0 0 24 24">
+      <path d="m7 15 5 5 5-5" /><path d="m7 9 5-5 5 5" />
+    </symbol>
+    <symbol id="icon-arrow-up" viewBox="0 0 24 24">
+      <path d="m5 12 7-7 7 7" /><path d="M12 19V5" />
+    </symbol>
+    <symbol id="icon-lightbulb" viewBox="0 0 24 24">
+      <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" />
+      <path d="M9 18h6" /><path d="M10 22h4" />
+    </symbol>
+    <symbol id="icon-calculator" viewBox="0 0 24 24">
+      <rect width="16" height="20" x="4" y="2" rx="2" />
+      <line x1="8" x2="16" y1="6" y2="6" /><line x1="16" x2="16" y1="14" y2="18" />
+      <path d="M16 10h.01" /><path d="M12 10h.01" /><path d="M8 10h.01" />
+      <path d="M12 14h.01" /><path d="M8 14h.01" /><path d="M12 18h.01" /><path d="M8 18h.01" />
+    </symbol>
+    <symbol id="icon-triangle-alert" viewBox="0 0 24 24">
+      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
+      <path d="M12 9v4" /><path d="M12 17h.01" />
+    </symbol>
+    <symbol id="icon-x" viewBox="0 0 24 24">
+      <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+    </symbol>
+    <symbol id="icon-ship" viewBox="0 0 24 24">
+      <path d="M12 10.189V14" /><path d="M12 2v3" /><path d="M19 13V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v6" /><path d="M19.38 20A11.6 11.6 0 0 0 21 14l-8.188-3.639a2 2 0 0 0-1.624 0L3 14a11.6 11.6 0 0 0 2.81 7.76" /><path d="M2 21c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1s1.2 1 2.5 1c2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1" />
+    </symbol>
+    <symbol id="icon-flag" viewBox="0 0 24 24">
+      <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" x2="4" y1="22" y2="15" />
+    </symbol>
+    <symbol id="icon-home" viewBox="0 0 24 24">
+      <path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" />
+      <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+    </symbol>
+    <symbol id="icon-utensils" viewBox="0 0 24 24">
+      <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" /><path d="M7 2v20" />
+      <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
+    </symbol>
+    <symbol id="icon-eye" viewBox="0 0 24 24">
+      <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+      <circle cx="12" cy="12" r="3" />
+    </symbol>
+    <symbol id="icon-maximize" viewBox="0 0 24 24">
+      <path d="M8 3H5a2 2 0 0 0-2 2v3" /><path d="M21 8V5a2 2 0 0 0-2-2h-3" />
+      <path d="M3 16v3a2 2 0 0 0 2 2h3" /><path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+    </symbol>
+    <symbol id="icon-minimize" viewBox="0 0 24 24">
+      <path d="M8 3v3a2 2 0 0 1-2 2H3" /><path d="M21 8h-3a2 2 0 0 1-2-2V3" />
+      <path d="M3 16h3a2 2 0 0 1 2 2v3" /><path d="M16 21v-3a2 2 0 0 1 2-2h3" />
+    </symbol>
+    <symbol id="icon-arrow-narrow-up" viewBox="0 0 24 24">
+      <path d="M12 20V4" /><path d="m5 11 7-7 7 7" />
+    </symbol>
+    <symbol id="icon-focus" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M3 7V5a2 2 0 0 1 2-2h2" /><path d="M17 3h2a2 2 0 0 1 2 2v2" />
+      <path d="M21 17v2a2 2 0 0 1-2 2h-2" /><path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+    </symbol>
+  </svg>
+
+  <div class="sg-layout">
+    <div class="sg-toc-backdrop" id="sg-toc-backdrop" aria-hidden="true"></div>
+
+    <div class="sg-toc" id="toc">
+      <div class="sg-toc-topbar">
+        <button class="sg-btn sg-btn-icon sg-toc-close" id="sg-toc-close" title="Close menu" aria-label="Close menu">
+          <svg class="sg-icon" aria-hidden="true"><use href="#icon-x"></use></svg>
+        </button>
+      </div>
+      <div class="sg-toc-rail">
+        <button class="sg-btn" id="sg-toc-toggle" title="Show/hide the contents sidebar">
+          <svg class="sg-icon" aria-hidden="true"><use href="#icon-menu"></use></svg>
+          <span class="sg-btn-label">Hide Contents</span>
+        </button>
+        <button class="sg-btn" id="sg-toc-collapse-all" title="Collapse/expand all sub-sections">
+          <svg class="sg-icon" aria-hidden="true"><use href="#icon-chevrons-up-down"></use></svg>
+          <span class="sg-btn-label">Collapse Sub-sections</span>
+        </button>
+      </div>
+      <div class="sg-toc-body">
+        <div class="sg-toc-title-row">
+          <div class="sg-toc-title">Contents</div>
+        </div>
+        <div id="toc-nav"></div>
+      </div>
+    </div>
+
+    <div class="sg-main-wrap">
+      <header class="sg-header">
+        <div class="sg-header-row">
+          <button class="sg-btn sg-btn-icon sg-mobile-menu-btn" id="sg-mobile-menu-toggle" title="Open contents menu" aria-label="Open contents menu" aria-expanded="false" aria-controls="toc">
+            <svg class="sg-icon" aria-hidden="true"><use href="#icon-menu"></use></svg>
+          </button>
+          <h1 class="sg-title">Cousins Cruise 2027 — Travel Companion</h1>
+          <div class="sg-controls">
+            <div class="sg-info-wrap">
+              <button class="sg-btn sg-btn-icon" id="sg-info-toggle" title="Guide info" aria-expanded="false">
+                <svg class="sg-icon" aria-hidden="true"><use href="#icon-info"></use></svg>
+              </button>
+              <div class="sg-info-popover" id="sg-info-popover" aria-hidden="true">
+                <div class="sg-meta">Generated 2026-09-03 &middot; Every shore excursion offered on Celebrity Silhouette's Sep 24 &ndash; Oct 5, 2027 sailing, pulled from the Cruise Planner</div>
+                <div class="sg-badges">
+                  <span class="sg-badge">16 Cousins, 1 Cruise</span>
+                  <span class="sg-badge">Boston &rarr; Atlantic Canada &amp; New England &rarr; Boston</span>
+                </div>
+              </div>
+            </div>
+            <button class="sg-btn sg-btn-icon" id="sg-theme-toggle" title="Toggle light/dark">
+              <svg class="sg-icon" aria-hidden="true"><use href="#icon-sun"></use></svg>
+              <svg class="sg-icon" aria-hidden="true"><use href="#icon-moon"></use></svg>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main class="sg-main">
+
+        <section>
+          <h2>Trip Map 🗺️</h2>
+          <p>Every port your ship calls at, in order, plus a handful of the excursions' biggest
+          sights. <span class="sg-tripmap-legend-item"><span class="sg-tripmap-swatch sg-tripmap-swatch--stay"><svg class="sg-icon" aria-hidden="true"><use href="#icon-home"></use></svg></span></span>House
+          pins are the ports where Silhouette docks each day; <span class="sg-tripmap-legend-item"><span class="sg-tripmap-swatch sg-tripmap-swatch--poi"><svg class="sg-icon" aria-hidden="true"><use href="#icon-eye"></use></svg></span></span>eye
+          pins are stand-out sights mentioned in the excursions below. The dashed teal line traces
+          the route the ship actually sails, port to port, out of and back into Boston. The big <span class="sg-tripmap-legend-item"><span class="sg-tripmap-swatch sg-tripmap-swatch--terminal"><svg class="sg-icon" aria-hidden="true"><use href="#icon-ship"></use></svg></span></span>red
+          ship pin is where the cruise starts and finishes: Flynn Cruiseport Boston.</p>
+          <div class="sg-tripmap" id="sg-tripmap">
+            <div class="sg-tripmap-toolbar">
+              <div class="sg-tripmap-legend" role="group" aria-label="Show or hide pin types">
+                <button type="button" class="sg-tripmap-filter" data-kind="stay" aria-pressed="true"><span class="sg-tripmap-swatch sg-tripmap-swatch--stay"><svg class="sg-icon" aria-hidden="true"><use href="#icon-home"></use></svg></span>Ports of call</button>
+                <button type="button" class="sg-tripmap-filter" data-kind="poi" aria-pressed="true"><span class="sg-tripmap-swatch sg-tripmap-swatch--poi"><svg class="sg-icon" aria-hidden="true"><use href="#icon-eye"></use></svg></span>Featured sights</button>
+              </div>
+              <div class="sg-tripmap-toolbar-actions">
+                <button class="sg-btn sg-btn-icon" id="sg-tripmap-fit" type="button" title="Zoom to fit all pins" aria-label="Zoom to fit all pins">
+                  <svg class="sg-icon" aria-hidden="true"><use href="#icon-focus"></use></svg>
+                </button>
+                <button class="sg-btn sg-btn-icon sg-tripmap-fullscreen-btn" id="sg-tripmap-fullscreen" type="button" title="View map fullscreen" aria-label="View map fullscreen">
+                  <svg class="sg-icon" aria-hidden="true"><use href="#icon-maximize"></use></svg>
+                </button>
+              </div>
+            </div>
+            <div class="sg-tripmap-canvas" id="sg-tripmap-canvas" role="img" aria-label="Map of Celebrity Silhouette's route from Boston around Atlantic Canada and New England and back"></div>
+          </div>
+          <p class="sg-tripmap-hint">💡 Tap or click any pin for what it is and a link straight into
+          Google Maps. Pinch or scroll to zoom, drag to pan, and use the
+          <svg class="sg-icon" aria-hidden="true" style="width:0.9em;height:0.9em;vertical-align:-0.1em"><use href="#icon-maximize"></use></svg>
+          button for a fullscreen view. This part of the page needs a connection to load the map
+          tiles — the rest of the guide works fine offline.</p>
+        </section>
+
+        <section>
+          <h2>Welcome to the Trip ⚓</h2>
+          <p>Eleven nights on Celebrity Silhouette, round-trip out of Boston — Rockland, Halifax,
+          Sydney, an overnight in Québec City, Charlottetown, and Portland, with three sea days
+          worked in between. This is every shore excursion Celebrity is currently offering on this
+          exact sailing (Sep 24 &ndash; Oct 5, 2027), organized by the day you'd actually take it,
+          so all 16 of us can compare options and pick what sounds good — together or split up.</p>
+          <div class="sg-callout tip">
+            <div class="sg-callout-title"><svg class="sg-icon" aria-hidden="true"><use href="#icon-lightbulb"></use></svg> How to use this</div>
+            <p>Each excursion below links straight to its live page on Celebrity's site to book —
+            prices shown are the current "from" rate per person and carry a pre-cruise discount
+            that typically improves closer to sailing, so treat them as a snapshot, not a locked-in
+            price. This page works offline once it's loaded, except the Trip Map above and the
+            booking links, which need a connection.</p>
+          </div>
+        </section>
+
+        <section>
+          <h2>Trip at a Glance 🗓️</h2>
+          <p>Eight port days, three sea days, 74 excursions between them. Full detail for each port
+          is below this table.</p>
+          <table>
+            <thead><tr><th>Day</th><th>Date</th><th>Port</th><th>Excursions</th></tr></thead>
+            <tbody>
+              <tr><td>Day 1</td><td>Fri 9/24</td><td>Boston</td><td>Embarkation</td></tr>
+              <tr><td>Day 2</td><td>Sat 9/25</td><td>Rockland, Maine</td><td>9</td></tr>
+              <tr><td>Day 3</td><td>Sun 9/26</td><td>Halifax, Nova Scotia</td><td>12</td></tr>
+              <tr><td>Day 4</td><td>Mon 9/27</td><td>Sydney, Nova Scotia</td><td>12</td></tr>
+              <tr><td>Day 5</td><td>Tue 9/28</td><td>At sea</td><td>&mdash;</td></tr>
+              <tr><td>Day 6</td><td>Wed 9/29</td><td>Québec City, Québec</td><td rowspan="2">15 (spans both days)</td></tr>
+              <tr><td>Day 7</td><td>Thu 9/30</td><td>Québec City, Québec</td></tr>
+              <tr><td>Day 8</td><td>Fri 10/1</td><td>At sea</td><td>&mdash;</td></tr>
+              <tr><td>Day 9</td><td>Sat 10/2</td><td>Charlottetown, PEI</td><td>12</td></tr>
+              <tr><td>Day 10</td><td>Sun 10/3</td><td>At sea</td><td>&mdash;</td></tr>
+              <tr><td>Day 11</td><td>Mon 10/4</td><td>Portland, Maine</td><td>12</td></tr>
+              <tr><td>Day 12</td><td>Tue 10/5</td><td>Boston</td><td>2, then disembarkation</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section>
+          <h2 data-toc="Rockland">Day 2 — Rockland, Maine 🦞</h2>
+          <p>The quintessential Maine coast — Rockland's working harbor gives way to Camden's
+          postcard village and the summit of Mount Battie, with Owls Head's antique aircraft
+          collection and Boothbay's botanical gardens as the two detours from the Camden theme.</p>
+
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/camden-harbor-mount-battie.jpg" alt="Camden Harbor seen from the summit of Mount Battie">
+            <figcaption>Camden Harbor and Penobscot Bay, seen from the summit of Mount Battie — the view most of today's excursions build toward. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Camden_Harbor_from_Mount_Battie_-_panoramio.jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY 3.0)</span></figcaption>
+          </figure>
+
+          <h4>⛵ Independent Exploration: Camden Transfer</h4>
+          <p>3 hr 45 min &middot; 9:30 am, 11:15 am &middot; Activity level: Mild &middot; <strong>$135</strong>/adult &middot; $121/child</p>
+          <p>Find the quintessential New England experience on a visit to the charming, bustling harbor town of Camden, where you are free to shop, explore, and indulge in local, fresh seafood favorites.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y4UA?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🚤 Destination Highlight: Camden by Land and Sea</h4>
+          <p>5 hr 15 min &middot; 8:30 am &middot; Activity level: Moderate &middot; <strong>$330</strong>/adult &middot; $264/child</p>
+          <div class="sg-carousel"><div class="sg-carousel-track">
+            <figure>
+              <img src="images/cousins-cruise-2027-companion/camden-harbor-mount-battie.jpg" alt="Camden Harbor seen from the summit of Mount Battie">
+              <figcaption>Camden Harbor and Penobscot Bay from Mount Battie. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Camden_Harbor_from_Mount_Battie_-_panoramio.jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY 3.0)</span></figcaption>
+            </figure>
+            <figure>
+              <img src="images/cousins-cruise-2027-companion/mount-battie-tower.jpg" alt="The stone memorial tower at the summit of Mount Battie">
+              <figcaption>The stone tower at Mount Battie's summit, built in 1921. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Mt._Battie_Tower_in_Camden,_Maine_(44993133662).jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY 2.0)</span></figcaption>
+            </figure>
+          </div></div>
+          <p>Enjoy New England's mesmerizing coastal scenery on a drive to the charming harbor town of Camden to set sail on the glimmering Penobscot Bay.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y5BB?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🏛️ Destination Highlight: Farnsworth, Camden and Mt. Battie</h4>
+          <p>4 hr 30 min &middot; 8:30 am, 10:30 am &middot; Activity level: Moderate &middot; <strong>$161</strong>/adult &middot; $129/child</p>
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/mount-battie-tower.jpg" alt="The stone memorial tower at the summit of Mount Battie">
+            <figcaption>Mount Battie's summit tower, part of this tour's coastal-viewpoint stop. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Mt._Battie_Tower_in_Camden,_Maine_(44993133662).jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY 2.0)</span></figcaption>
+          </figure>
+          <p>Take in the scenery of Mid-coast Maine, enjoy time on your own to explore the picturesque seaside village of Camden and visit the Farnsworth Art Museum, home to over 10,000 works of 19th-century American art.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y4U4?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>✈️ Destination Highlight: Owls Head Transportation Museum and Lighthouse</h4>
+          <p>2 hr 45 min &middot; 9:00 am, 12:15 pm &middot; Activity level: Mild &middot; <strong>$137</strong>/adult &middot; $109/child</p>
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/owls-head-light.jpg" alt="Owls Head Lighthouse on the cliffs above Penobscot Bay">
+            <figcaption>Owls Head Light, guarding the entrance to Rockland Harbor since 1825. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Owls_Head_Light_Vertical_Center.JPG" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 3.0)</span></figcaption>
+          </figure>
+          <p>Visit the Owls Head Transportation Museum's landmark collection of antique aircraft, automobiles and carriages — maintained in operating condition, with a chance to ride in a Ford Model T.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y4U9?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🏔️ Destination Highlight: Camden and Mt. Battie</h4>
+          <p>4 hr &middot; 8:30 &ndash; 11:00 am &middot; Activity level: Moderate &middot; <strong>$124</strong>/adult &middot; $99/child</p>
+          <p>Drive New England's picturesque coastline to the summit of Mount Battie for views over Penobscot Bay, then explore the harbor village of Camden on your own.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y5BC?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🦞 Small Group: Rockland Foodie Walking Tour</h4>
+          <p>2 hr 30 min &middot; 10:45 am &middot; Activity level: Moderate &middot; <strong>$201</strong>/adult &middot; $154/child</p>
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/rockland-breakwater-light.jpg" alt="Rockland Harbor Breakwater Light at the end of its stone breakwater">
+            <figcaption>Rockland Harbor Breakwater Light, at the end of the 4,300-foot breakwater the town itself is built around. <span class="sg-figure-source">- Source: US Coast Guard, via <a href="https://commons.wikimedia.org/wiki/File:Rockland_Harbor_Breakwater_Light_Maine.JPG" target="_blank" rel="noopener">Wikimedia Commons</a> (public domain)</span></figcaption>
+          </figure>
+          <p>Sample Maine's specialties — lobster rolls, chowder, oysters, artisanal cheese — at some of Rockland's best local eateries on a guided culinary walk through downtown.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y5BD?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🌷 Destination Highlight: Coastal Botanical Gardens and Boothbay Harbor</h4>
+          <p>5 hr 15 min &middot; 8:15 am &middot; Activity level: Moderate &middot; <strong>$163</strong>/adult &middot; $146/child</p>
+          <div class="sg-carousel"><div class="sg-carousel-track">
+            <figure>
+              <img src="images/cousins-cruise-2027-companion/coastal-botanical-gardens-2.jpg" alt="A garden pond with fountain and lavender beds at Coastal Maine Botanical Gardens">
+              <figcaption>One of the display gardens at Coastal Maine Botanical Gardens, New England's largest. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Little_pond_-_Coastal_Maine_Botanical_Gardens_-_DSC03108.jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 4.0)</span></figcaption>
+            </figure>
+            <figure>
+              <img src="images/cousins-cruise-2027-companion/coastal-botanical-gardens.jpg" alt="A shaded lawn and woodland path at Coastal Maine Botanical Gardens">
+              <figcaption>The Gardens' wooded, tidewater-shoreline grounds — nearly a mile of shore frontage across 295 acres. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Lawn_-_Coastal_Maine_Botanical_Gardens_-_DSC03189.jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 4.0)</span></figcaption>
+            </figure>
+          </div></div>
+          <p>A guided walk through the 295-acre Coastal Maine Botanical Gardens, followed by free time in the charming village of Boothbay Harbor.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y4UI?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🍷 Destination Highlight: Wine Tasting and Free Time in Camden</h4>
+          <p>3 hr 45 min &middot; 10:00 am &middot; Activity level: Moderate &middot; <strong>$151</strong>/adult &middot; $121/child</p>
+          <p>Tour a local vineyard and taste red and white varietals at the restored Cellardoor Winery, with time afterward to explore the village of Camden.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y4UB?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>📸 Camden &amp; Mount Battie Panoramic</h4>
+          <p>1 hr 30 min &middot; 9:00 am &middot; Activity level: Moderate &middot; <strong>$112</strong>/adult &middot; $76/child</p>
+          <p>A short scenic drive from Rockland through Rockport to the windswept summit of Mount Battie — classic Maine coastal views without a big time commitment.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y9TO?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+        </section>
+
+        <section>
+          <h2 data-toc="Halifax">Day 3 — Halifax, Nova Scotia 🌊</h2>
+          <p>Nova Scotia's capital, mixing Victorian gardens and a lively waterfront with two of
+          the region's most-visited sites: the fishing village of Peggy's Cove and the cemetery
+          where 121 Titanic victims are buried.</p>
+
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/halifax-public-gardens.jpg" alt="The entrance gates to the Halifax Public Gardens">
+            <figcaption>The Halifax Public Gardens, formally established in 1867 and a National Historic Site of Canada. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Public_Gardens_5769_Spring_Garden_Road_Halifax_Nova_Scotia_Canada.JPG" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 4.0)</span></figcaption>
+          </figure>
+
+          <h4>🌷 The Heart of Halifax</h4>
+          <p>2 hr 30 min &middot; 11:30 am, 2:45 pm &middot; Activity level: Moderate &middot; <strong>$75</strong>/adult &middot; $57/child</p>
+          <p>From a Victorian garden to a hilltop fortress, a well-rounded look at how Halifax grew into one of Canada's most historic port cities.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y9RF?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🥾 Point Pleasant Park Hike</h4>
+          <p>2 hr 30 min &middot; 11:30 am &middot; Activity level: Strenuous &middot; <strong>$79</strong>/adult &middot; $59/child</p>
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/point-pleasant-park.jpg" alt="A pavilion overlooking the water in Point Pleasant Park">
+            <figcaption>Point Pleasant Park, a forested municipal park at the southern tip of the Halifax peninsula. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:A_pavillion_in_Point_Pleasant_Park,_Halifax._(8280051734).jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY 2.0)</span></figcaption>
+          </figure>
+          <p>A guided walk through Point Pleasant Park's forested trails and ocean vistas, with stories of Halifax's military past along the way.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y9RE?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🤳 Selfie Tour of the Best of Halifax &amp; Dartmouth by Foot</h4>
+          <p>3 hr &middot; 11:00 am &middot; Activity level: Moderate &middot; <strong>$73</strong>/adult &middot; $67/child</p>
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/halifax-waterfront-boardwalk.jpg" alt="The boardwalk along the Halifax waterfront">
+            <figcaption>The Halifax waterfront boardwalk, this tour's starting point before a ferry ride to Dartmouth. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Halifax_boardwalk.JPG" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 3.0)</span></figcaption>
+          </figure>
+          <p>A photo-friendly walk along Halifax's waterfront and landmarks, with a ferry ride across to Dartmouth.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y9QX?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🚶 Historic Halifax Walking Tour</h4>
+          <p>2 hr &middot; 12:15 pm, 3:15 pm &middot; Activity level: Moderate &middot; <strong>$40</strong>/adult &middot; $36/child</p>
+          <p>A kilted guide leads a 2-hour taste of Halifax's maritime history along the waterfront boardwalk and Grand Parade.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/HXD3?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🍁 Coastal Charm and Maple Delight</h4>
+          <p>3 hr 30 min &middot; 11:00 am &middot; Activity level: Moderate &middot; <strong>$61</strong>/adult &middot; $44/child</p>
+          <p>Combines Nova Scotia's rugged coastline with a stop for the province's famous maple syrup.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y9TY?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🎻 Kick Up Your Heels at Maritime Ceilidh</h4>
+          <p>2 hr &middot; 12:30 pm &middot; Activity level: Mild &middot; <strong>$59</strong>/adult &middot; $50/child</p>
+          <p>A lively downtown venue for live Irish and Scottish music and dance celebrating Nova Scotia's Celtic roots.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y9U1?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🏛️ Halifax Past &amp; Present</h4>
+          <p>2 hr 30 min &middot; 11:30 am, 2:45 pm &middot; Activity level: Moderate &middot; <strong>$68</strong>/adult &middot; $55/child</p>
+          <p>From Victorian gardens to Titanic memorials, a scenic drive through the layers of Halifax's history.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y9RD?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🦆 Destination Highlight: Halifax City and Harbour Duck Tour</h4>
+          <p>1 hr &middot; 1:00 pm, 2:30 pm &middot; Activity level: Moderate &middot; <strong>$76</strong>/adult &middot; $68/child</p>
+          <p>An amphibious "Harbour Hopper" tour of Halifax that travels on both land and water.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/HXDJ?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🚢 Destination Highlight: Titanic — The Halifax Connection</h4>
+          <p>3 hr &middot; 12:30 pm &middot; Activity level: Mild &middot; <strong>$85</strong>/adult &middot; $76/child</p>
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/fairview-lawn-cemetery.jpg" alt="Rows of headstones at Fairview Lawn Cemetery in autumn">
+            <figcaption>Fairview Lawn Cemetery, final resting place for 121 Titanic victims — more than any other cemetery in the world. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:CA-halifax-fairview.jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 3.0)</span></figcaption>
+          </figure>
+          <p>Discover Halifax's role after the Titanic disaster, including the cemetery where victims are buried.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/HXD5?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🏘️ Destination Highlight: Famous Peggy's Cove Fishing Village</h4>
+          <p>3 hr 30 min &middot; 12:00 pm &middot; Activity level: Mild &middot; <strong>$68</strong>/adult &middot; $59/child</p>
+          <div class="sg-carousel"><div class="sg-carousel-track">
+            <figure>
+              <img src="images/cousins-cruise-2027-companion/peggys-cove-lighthouse.jpg" alt="Peggy's Point Lighthouse on the granite rocks at Peggy's Cove">
+              <figcaption>Peggy's Point Lighthouse, first lit in 1915 and Nova Scotia's most-photographed landmark. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Close-up_of_Peggy%27s_Point_Lighthouse_at_Peggy%27s_Cove.jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 4.0)</span></figcaption>
+            </figure>
+            <figure>
+              <img src="images/cousins-cruise-2027-companion/peggys-cove-village.jpg" alt="Peggy's Cove lighthouse seen from across the rocky cove">
+              <figcaption>The lighthouse and rocky coastline of Peggy's Cove, home to fewer than 60 year-round residents. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:04_Peggy%27s_Cove,_NS.jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 3.0)</span></figcaption>
+            </figure>
+          </div></div>
+          <p>Nova Scotia's famed Lighthouse Route leads to the tiny, artist-inspiring fishing village of Peggy's Cove.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/HXD1?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>⚓ Destination Highlight: Peggy's Cove and Titanic</h4>
+          <p>4 hr &middot; 12:30 pm &middot; Activity level: Mild &middot; <strong>$72</strong>/adult &middot; $63/child</p>
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/peggys-cove-lighthouse.jpg" alt="Peggy's Point Lighthouse on the granite rocks at Peggy's Cove">
+            <figcaption>Peggy's Point Lighthouse, the first half of this two-stop tour. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Close-up_of_Peggy%27s_Point_Lighthouse_at_Peggy%27s_Cove.jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 4.0)</span></figcaption>
+          </figure>
+          <p>Combines Peggy's Cove with a visit to Fairview Lawn Cemetery, resting place of 121 Titanic victims.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/HXD6?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🚌 Destination Highlight: Hop On, Hop Off Halifax Sightseeing</h4>
+          <p>At your leisure &middot; Activity level: Mild &middot; <strong>$59</strong>/adult &middot; $55/child</p>
+          <p>London double-decker buses stopping at Halifax's landmarks — explore at your own pace, hop off wherever you like.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/HXD4?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+        </section>
+
+        <section>
+          <h2 data-toc="Sydney">Day 4 — Sydney, Nova Scotia 🎻</h2>
+          <p>Cape Breton Island's port city, and the jumping-off point for two of the region's
+          biggest draws — the reconstructed 18th-century Fortress of Louisbourg and the sweeping
+          coastal scenery of the Cabot Trail.</p>
+
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/big-fiddle-sydney.jpg" alt="The Big Fiddle, a giant sculpture of a fiddle, on the Sydney waterfront">
+            <figcaption>The "Big Fiddle" — a ten-ton, 60-foot tribute to Cape Breton's Celtic fiddle tradition, right where cruise ships dock. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Big_Fiddle_of_the_Ceilidh_Sydney,_Nova_Scotia_CANADA_October_2010.jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 3.0)</span></figcaption>
+          </figure>
+
+          <h4>🚶 Destination Highlight: Old Sydney Walking Tour</h4>
+          <p>2 hr &middot; 11:15 am, 2:15 pm &middot; Activity level: Moderate &middot; <strong>$40</strong>/adult &middot; $36/child</p>
+          <p>A walk through Old Sydney's museums and history, founded by Loyalists fleeing the American Revolution.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/SX60?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>⚓ Destination Highlight: Historical Sydney Highlights</h4>
+          <p>1 hr 30 min &middot; 2:30 pm, 4:30 pm &middot; Activity level: Mild &middot; <strong>$44</strong>/adult &middot; $36/child</p>
+          <p>A scenic look at Sydney Harbour's landmarks and the smaller communities around one of the Atlantic's most strategic ports.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/SX39?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🏰 Destination Highlight: Relive History at the Fortress of Louisbourg</h4>
+          <p>3 hr 45 min &middot; 10:30 am, 12:30 pm &middot; Activity level: Moderate &middot; <strong>$80</strong>/adult &middot; $52/child</p>
+          <div class="sg-carousel"><div class="sg-carousel-track">
+            <figure>
+              <img src="images/cousins-cruise-2027-companion/fortress-louisbourg-1.jpg" alt="The reconstructed Fortress of Louisbourg seen across the harbor, with waves breaking on rocks">
+              <figcaption>The reconstructed Fortress of Louisbourg, North America's largest 18th-century French fortified town. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:DSC_4090_-_Fortress_of_Louisbourg_National_Historic_Park_(2452278817).jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 2.0)</span></figcaption>
+            </figure>
+            <figure>
+              <img src="images/cousins-cruise-2027-companion/fortress-louisbourg-2.jpg" alt="A costumed reenactor in period dress on a street inside the Fortress of Louisbourg">
+              <figcaption>A costumed interpreter inside the fortress walls — the "living history" side of a Louisbourg visit. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:1998-08-05_Fortress_Louisbourg_(08).jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 3.0)</span></figcaption>
+            </figure>
+          </div></div>
+          <p>Step into Nova Scotia of 1744 at the reconstructed Fortress of Louisbourg, with costumed characters and period buildings.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/SX62?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🎻 Destination Highlight: Spirit of the Fiddle — Sounds of Cape Breton</h4>
+          <p>1 hr 30 min &middot; 10:45 am, 12:45 pm &middot; Activity level: Mild &middot; <strong>$48</strong>/adult &middot; $34/child</p>
+          <p>Starts at the World's Largest Fiddle and ends with a live performance of fiddlers, step dancers and singers.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/SX64?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🏴󠁧󠁢󠁳󠁣󠁴󠁿 Destination Highlight: The Heart of the Island</h4>
+          <p>3 hr &middot; 11:00 am, 2:30 pm &middot; Activity level: Moderate &middot; <strong>$75</strong>/adult &middot; $59/child</p>
+          <p>Nova Scotia is Latin for "New Scotland" — a drive through Cape Breton to the Highland Village, tracing the island's Scottish roots.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/SX63?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>📞 Destination Highlights: Bell Museum and Scenic Baddeck</h4>
+          <p>3 hr 30 min &middot; 10:30 am &middot; Activity level: Mild &middot; <strong>$60</strong>/adult &middot; $45/child</p>
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/bell-museum-baddeck.jpg" alt="The Alexander Graham Bell National Historic Site visitor center in Baddeck">
+            <figcaption>The Alexander Graham Bell National Historic Site in Baddeck, overlooking the Bras d'Or Lakes. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Visitor_Centre_at_the_Alexander_Graham_Bell_National_Historic_Site_of_Canada.JPG" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 3.0)</span></figcaption>
+          </figure>
+          <p>The picturesque village of Baddeck, where Alexander Graham Bell settled — visit the museum of his inventions.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/SX61?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🤳 Selfie Tour of the Best of Sydney by Foot</h4>
+          <p>2 hr 30 min &middot; 10:30 am &middot; Activity level: Moderate &middot; <strong>$74</strong>/adult &middot; $63/child</p>
+          <p>A lighthearted, photo-friendly walk through Cape Breton's port city, from the Merchant Mariners Monument to the Sydney Sign.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y9R0?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>💡 Destination Highlight: Lure of Lighthouses and Fortress of Louisbourg</h4>
+          <p>3 hr 30 min &middot; 10:30 am &middot; Activity level: Mild &middot; <strong>$85</strong>/adult &middot; $76/child</p>
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/fortress-louisbourg-1.jpg" alt="The reconstructed Fortress of Louisbourg seen across the harbor, with waves breaking on rocks">
+            <figcaption>The Fortress of Louisbourg from across the harbor. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:DSC_4090_-_Fortress_of_Louisbourg_National_Historic_Park_(2452278817).jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 2.0)</span></figcaption>
+          </figure>
+          <p>Ocean scenery, an 18th-century lighthouse, and the historic Fortress of Louisbourg, a National Historic Site.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/SX67?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🏭 Destination Highlight: Sydney's History, Color and Culture</h4>
+          <p>2 hr &middot; 11:00 am &ndash; 4:00 pm &middot; Activity level: Mild &middot; <strong>$85</strong>/adult &middot; $76/child</p>
+          <p>Sydney's melting-pot heritage, from the 1785 Loyalist settlement to the steel-and-coal era of Whitney Pier.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/SX66?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🚗 Destination Highlight: A Road Trip Along the Cabot Trail</h4>
+          <p>7 hr &middot; 10:45 am &middot; Activity level: Moderate &middot; <strong>$180</strong>/adult &middot; $127/child</p>
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/cabot-trail.jpg" alt="A panoramic view of the winding mountain road on the Cabot Trail, Cape Breton">
+            <figcaption>The Cabot Trail winding through the Cape Breton Highlands — Alexander Graham Bell called this scenery unrivaled anywhere in the world. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Cabot_trail_2009k.JPG" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 3.0)</span></figcaption>
+          </figure>
+          <p>Follow Alexander Graham Bell's favorite drive through Cape Breton's dramatic, unspoiled scenery, with a buffet lunch included.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/SX65?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🎒 Destination Highlight: The Sydney Bucket List Tour</h4>
+          <p>6 hr 30 min &middot; 11:00 am &middot; Activity level: Mild &middot; <strong>$136</strong>/adult &middot; $123/child</p>
+          <p>A full day covering three of the area's must-see attractions, including the Fortress of Louisbourg.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/SX48?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🍽️ Flavors of Sydney by Foot</h4>
+          <p>2 hr 30 min &middot; 2:00 pm &middot; Activity level: Moderate &middot; <strong>$127</strong>/adult &middot; $114/child</p>
+          <p>From striking architecture to local dishes, a food-focused walk through the soul of Cape Breton.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y9R1?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+        </section>
+
+        <section>
+          <h2>Day 5 — At Sea 🌊</h2>
+          <p>No excursions — a full day to enjoy the ship between Sydney and Québec City.</p>
+        </section>
+
+        <section>
+          <h2 data-toc="Quebec City">Days 6–7 — Québec City, Québec 🏰</h2>
+          <p>An overnight port call — the ship is docked both days, so several excursions run on
+          either day, or both. Château Frontenac and the cobblestone streets of Old Québec anchor
+          the city; Montmorency Falls and Île d'Orléans are the countryside side trips.</p>
+          <div class="sg-callout tip">
+            <div class="sg-callout-title"><svg class="sg-icon" aria-hidden="true"><use href="#icon-lightbulb"></use></svg> Reading the times below</div>
+            <p>Where an excursion runs on both days, its time line shows "Day 6:" and "Day 7:"
+            separately with each day's own departure times — check both before you book.</p>
+          </div>
+
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/chateau-frontenac-2.jpg" alt="Château Frontenac rising above Old Québec's rooftops in summer">
+            <figcaption>Château Frontenac above Old Québec's Lower Town — the single most-photographed building on this cruise. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Ch%C3%A2teau_Frontenac_above_the_lower_town_in_summer,_Quebec_City.jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 4.0)</span></figcaption>
+          </figure>
+
+          <h4>🏰 Destination Highlight: Grand Exploration of Québec</h4>
+          <p>5 hr 30 min &middot; Day 6: 12:30 pm &middot; Day 7: 8:30 am &middot; Activity level: Moderate &middot; <strong>$264</strong>/adult &middot; $236/child</p>
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/montmorency-falls.jpg" alt="Montmorency Falls with its suspension bridge, taller than Niagara Falls">
+            <figcaption>Montmorency Falls, 30 meters taller than Niagara — a stop on this tour's countryside leg. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Chute_Montmorency_MAM.JPG" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 3.0)</span></figcaption>
+          </figure>
+          <p>Landmarks of Québec City plus the surrounding countryside, with a photo stop at National Battlefields Park.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/QU39?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🏛️ Destination Highlight: UNESCO's Historic Québec</h4>
+          <p>2 hr &middot; Day 6: 4:15 pm &middot; Day 7: 12:30 pm &middot; Activity level: Mild &middot; <strong>$104</strong>/adult &middot; $92/child</p>
+          <p>The historic and cultural heart of the first French city in North America, through Lower Town to Place Royale.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/QUC1?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>💦 Destination Highlight: Québec City Tour and Montmorency Falls</h4>
+          <p>3 hr &middot; Day 6 only: 4:00 pm &middot; Activity level: Mild &middot; <strong>$128</strong>/adult &middot; $116/child</p>
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/montmorency-falls.jpg" alt="Montmorency Falls with its suspension bridge, taller than Niagara Falls">
+            <figcaption>Montmorency Falls, this tour's out-of-town half. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Chute_Montmorency_MAM.JPG" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 3.0)</span></figcaption>
+          </figure>
+          <p>A bus tour of historic Québec plus a stop at the thundering Montmorency Falls.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/QUC8?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🚶 Destination Highlight: Old Québec Walking Tour</h4>
+          <p>3 hr &middot; Day 6: 11:30 am &middot; Day 7: 8:00, 11:30 am &middot; Activity level: Moderate &middot; <strong>$72</strong>/adult &middot; $64/child</p>
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/petit-champlain.jpg" alt="A steep street lined with historic buildings in Old Quebec">
+            <figcaption>One of Old Québec's steep, cobblestoned streets in the UNESCO World Heritage district. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Vieux_Quebec._La_rue_du_Petit-Champlain_(1).JPG" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 3.0)</span></figcaption>
+          </figure>
+          <p>Cobblestone streets of the UNESCO World Heritage Lower Town, including the shop-lined Petit Champlain.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/QUC2?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🌾 Destination Highlight: Québec Countryside Tour</h4>
+          <p>3 hr 15 min &middot; Day 6: 11:30 am &middot; Day 7: 8:00 am &middot; Activity level: Mild &middot; <strong>$170</strong>/adult &middot; $153/child</p>
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/ile-dorleans.jpg" alt="Aerial view of farm fields on Ile d'Orleans with the St. Lawrence River behind">
+            <figcaption>Farmland on Île d'Orléans, part of the rural landscape this countryside tour covers. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Champs_de_fraises_%C3%A0_Sainte-Famille_de_l%27%C3%8Ele_d%27Orl%C3%A9ans.JPG" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 3.0)</span></figcaption>
+          </figure>
+          <p>Away from the city to the Laurentian foothills, autumn color, and Montmorency Falls.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/QUC3?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>👻 Small Group: Ghost Tour of Québec</h4>
+          <p>2 hr &middot; Day 6 only: 6:30 pm &middot; Activity level: Moderate &middot; <strong>$176</strong>/adult &middot; $160/child</p>
+          <p>An evening walk through the Old Town's cobblestone streets with a costumed guide and Québec's darker history.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/QU40?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🍷 Small Group: Walking Tour and Tasting</h4>
+          <p>3 hr &middot; Day 6 only: 1:00 pm &middot; Activity level: Moderate &middot; <strong>$51</strong>/adult &middot; $46/child</p>
+          <p>Sights, sounds and tastes of Old Québec on an immersive walk through the UNESCO Old Town.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y75A?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>⛪ Destination Highlight: Sainte-Anne-de-Beaupré and Copper Embossing Experience</h4>
+          <p>3 hr 30 min &middot; Day 6: 11:30 am &middot; Day 7: 8:00 am &middot; Activity level: Mild &middot; <strong>$119</strong>/adult &middot; $106/child</p>
+          <p>The Basilica of Sainte-Anne-de-Beaupré, revered as a "place of miracles," plus the ancestral art of copper embossing.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/QU37?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🍇 Destination Highlight: The Beaupré Coast and St. Anne Canyon and Winery</h4>
+          <p>4 hr &middot; Day 6 only: 11:45 am &middot; Activity level: Moderate &middot; <strong>$168</strong>/adult &middot; $152/child</p>
+          <p>The St. Lawrence waterway to St. Anne Canyon, carved into 900-million-year-old rock, plus a stop for local wine.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/QUC5?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🍁 Destination Highlight: An Evening at the Sugar Shack</h4>
+          <p>3 hr 30 min &middot; Day 6 only: 6:30 pm &middot; Activity level: Mild &middot; <strong>$136</strong>/adult &middot; $124/child</p>
+          <p>Dinner, dancing and maple traditions at a Cabane à Sucre (Sugar Shack), with a Maple Museum visit.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/QUC4?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🚁 Helicopter Tour of Québec City</h4>
+          <p>3 hr 15 min &middot; Day 6: 1:15 pm &middot; Day 7: 9:00 am &middot; Activity level: Mild &middot; <strong>$781</strong>/adult &middot; $513/child</p>
+          <p>A bird's-eye pass over the Plains of Abraham and the Château Frontenac — the splurge excursion of this port.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y9VZ?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🫖 High Tea on Île d'Orléans</h4>
+          <p>3 hr &middot; Day 6 only: 1:30 pm &middot; Activity level: Mild &middot; <strong>$238</strong>/guest</p>
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/ile-dorleans.jpg" alt="Aerial view of farm fields on Ile d'Orleans with the St. Lawrence River behind">
+            <figcaption>The rural fields of Île d'Orléans, across the bridge from Québec City. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Champs_de_fraises_%C3%A0_Sainte-Famille_de_l%27%C3%8Ele_d%27Orl%C3%A9ans.JPG" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 3.0)</span></figcaption>
+          </figure>
+          <p>A refined countryside tea at a wood-beamed tea house on Île d'Orléans, across the scenic bridge from the city.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y9W0?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>💦 Destination Highlight: St-Anne-de-Beaupré and Montmorency Falls</h4>
+          <p>3 hr 15 min &middot; Day 7 only: 7:45 am &middot; Activity level: Mild &middot; <strong>$104</strong>/adult &middot; $92/child</p>
+          <p>The St. Anne Shrine, one of North America's most important Catholic sites, paired with Québec's tallest waterfall.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/QUC7?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🍓 Small Group: Island of Orleans Food Tour</h4>
+          <p>3 hr 30 min &middot; Day 7 only: 8:45 am &middot; Activity level: Moderate &middot; <strong>$280</strong>/adult &middot; $219/child</p>
+          <p>Regional flavors of Île d'Orléans — nougat, jams, wine — at a nougat shop and a nearby winery.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y75B?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🚶 Small Group: Historical Québec Walking</h4>
+          <p>2 hr 30 min &middot; Day 6: 3:15 pm &middot; Day 7: 8:30, 11:45 am &middot; Activity level: Moderate &middot; <strong>$34</strong>/adult &middot; $29/child</p>
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/chateau-frontenac-1.jpg" alt="Chateau Frontenac in winter with a row of antique cannons in the snow">
+            <figcaption>Château Frontenac — the landmark that dominates the skyline of every Old Québec walk. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/Ch%C3%A2teau_Frontenac" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 4.0)</span></figcaption>
+          </figure>
+          <p>Nearly four centuries of history on foot through Place-Royale and Old Québec's cobblestone streets. The budget-friendly way to see the Old Town.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y74Z?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+        </section>
+
+        <section>
+          <h2>Day 8 — At Sea 🌊</h2>
+          <p>No excursions — a full day to enjoy the ship between Québec City and Charlottetown.</p>
+        </section>
+
+        <section>
+          <h2 data-toc="Charlottetown">Day 9 — Charlottetown, Prince Edward Island 🥧</h2>
+          <p>PEI's capital — Anne of Green Gables country, red-soil farmland, the Confederation
+          Bridge, and a lighthouse-dotted coastline, all within a short drive of the pier.</p>
+
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/green-gables.jpg" alt="The white farmhouse with green gables and trim at Green Gables Heritage Place">
+            <figcaption>Green Gables Heritage Place in Cavendish — the farmhouse that inspired L.M. Montgomery's Anne of Green Gables. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Green_Gables_House_front_view.jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 3.0)</span></figcaption>
+          </figure>
+
+          <h4>🤳 The Charlottetown Selfie Tour</h4>
+          <p>2 hr 30 min &middot; 8:00 am &middot; Activity level: Moderate &middot; <strong>$152</strong>/adult &middot; $122/child</p>
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/charlottetown-waterfront.jpg" alt="Tall ships anchored in Charlottetown Harbour">
+            <figcaption>Charlottetown Harbour — the photo-friendly starting point for this walk. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Parade_of_Sail,_Charlottetown_Harbour,_PEI_(34797409004).jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY 2.0)</span></figcaption>
+          </figure>
+          <p>A photo-friendly mix of history and culture, starting at Prince Edward Battery and the city's landmark basilica.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y9QU?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🦞 Destination Highlight: The Island's Finest Scenic Drive, Anne and Lobster</h4>
+          <p>4 hr &middot; 8:00 am, 11:30 am &middot; Activity level: Moderate &middot; <strong>$208</strong>/adult &middot; $188/child</p>
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/green-gables.jpg" alt="The white farmhouse with green gables and trim at Green Gables Heritage Place">
+            <figcaption>Green Gables Heritage Place, this tour's literary stop before lunch. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Green_Gables_House_front_view.jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 3.0)</span></figcaption>
+          </figure>
+          <p>Seaside cliffs and farmland, the PEI National Park, and the setting behind Anne of Green Gables — plus a lobster lunch.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/EI70?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>📖 Destination Highlights: Anne of Green Gables and Island Drive</h4>
+          <p>3 hr 30 min &middot; 8:00 am, 12:00 pm &middot; Activity level: Mild &middot; <strong>$88</strong>/adult &middot; $80/child</p>
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/green-gables.jpg" alt="The white farmhouse with green gables and trim at Green Gables Heritage Place">
+            <figcaption>Green Gables, the farmstead that inspired L.M. Montgomery's beloved novel. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Green_Gables_House_front_view.jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 3.0)</span></figcaption>
+          </figure>
+          <p>Green Gables, the farmstead behind L.M. Montgomery's beloved novel, plus the streets where Canada was born.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/EI72?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>💡 Destination Highlight: Lighthouses of PEI</h4>
+          <p>3 hr &middot; 8:30 am, 12:00 pm &middot; Activity level: Moderate &middot; <strong>$64</strong>/adult &middot; $49/child</p>
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/point-prim-lighthouse.jpg" alt="Point Prim Lighthouse, PEI's oldest, on a grassy point">
+            <figcaption>Point Prim Lighthouse, PEI's oldest, built in 1845 at the entrance to Hillsborough Bay. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Point_Prim_Lighthouse_(21665950094).jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY 2.0)</span></figcaption>
+          </figure>
+          <p>Point Prim, PEI's oldest lighthouse, plus a visit to the Wood Islands lighthouse.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/EI76?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🌉 Destination Highlight: Panoramic Island Drive</h4>
+          <p>3 hr 30 min &middot; 7:45 am, 11:45 am &middot; Activity level: Mild &middot; <strong>$72</strong>/adult &middot; $64/child</p>
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/confederation-bridge.jpg" alt="The Confederation Bridge stretching across the water to Prince Edward Island">
+            <figcaption>Confederation Bridge, the longest bridge over ice-covered water in the world, connecting PEI to the mainland. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:NB_-_Confederation_Bridge1.jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 3.0)</span></figcaption>
+          </figure>
+          <p>A motor-coach loop of Charlottetown's landmarks, with shopping time and a stop at Confederation Bridge.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/EI77?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🚶 Small Group: Charlottetown Walking Tour</h4>
+          <p>1 hr 30 min &middot; 9:00 am, 11:30 am &middot; Activity level: Strenuous &middot; <strong>$24</strong>/adult &middot; $20/child</p>
+          <p>The waterfront and heritage district of Canada's smallest provincial capital, on foot.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/EI74?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🍬 Charlottetown's Sweet Spots Walking Tour</h4>
+          <p>3 hr &middot; 10:00 am &middot; Activity level: Moderate &middot; <strong>$104</strong>/adult &middot; $83/child</p>
+          <p>A decadent, bite-by-bite tasting walk through the historic streets of PEI's capital.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y9QV?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🌉 Destination Highlight: City to Sea Panoramic View</h4>
+          <p>6 hr 30 min &middot; 7:30 am, 8:30 am &middot; Activity level: Mild &middot; <strong>$207</strong>/adult &middot; $165/child</p>
+          <p>A panoramic drive plus Confederation Bridge, with a lobster roll lunch at Fisherman's Wharf.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/EI50?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🚌 Destination Highlight: Double Decker Ride and Stroll</h4>
+          <p>1 hr 30 min &middot; 8:15 am &ndash; 12:45 pm &middot; Activity level: Moderate &middot; <strong>$59</strong>/adult &middot; $55/child</p>
+          <p>A double-decker bus tour, a guided walk, and free time to explore — the well-rounded Charlottetown sampler.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/EI73?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🍺 Brewventure: Canada's Origins Through a Beer Tasting Walk!</h4>
+          <p>3 hr &middot; 11:30 am &middot; Activity level: Moderate &middot; <strong>$143</strong>/guest</p>
+          <p>Charlottetown's brewing culture paired with its role in Canadian history, on a downtown walking tour.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y9QW?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🌾 Scenic Tour of Prince Edward Island</h4>
+          <p>3 hr &middot; 8:00 am, 12:30 pm &middot; Activity level: Moderate &middot; <strong>$53</strong>/adult &middot; $48/child</p>
+          <p>The rolling countryside and seaside vistas that inspired L.M. Montgomery's novels — a relaxed, leisurely drive.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/EI71?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🐴 Small Group: A Trot About Town</h4>
+          <p>1 hr &middot; 8:30 am &ndash; 12:15 pm &middot; Activity level: Mild &middot; <strong>$51</strong>/adult &middot; $46/child</p>
+          <p>A horse-drawn wagon ride past Charlottetown's Victorian buildings and the Confederation Centre of the Arts.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/EI57?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+        </section>
+
+        <section>
+          <h2>Day 10 — At Sea 🌊</h2>
+          <p>No excursions — a full day to enjoy the ship between Charlottetown and Portland.</p>
+        </section>
+
+        <section>
+          <h2 data-toc="Portland">Day 11 — Portland, Maine 💡</h2>
+          <p>The last full port day — Maine's most-photographed lighthouse, the Old Port's brick
+          streets, and Kennebunkport's summer-home charm, plus two longer rail excursions for
+          anyone who wants a full day off the ship.</p>
+
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/portland-head-light.jpg" alt="Portland Head Light on a rocky point with the keeper's house">
+            <figcaption>Portland Head Light, Maine's oldest lighthouse (1791) and its most-visited. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Portland_Head_Light_-_Cape_Elizabeth_-_Maine_-_USA.jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 4.0)</span></figcaption>
+          </figure>
+
+          <h4>🚶 Small Group: Portland Walking Tour — Beyond the Old Port</h4>
+          <p>2 hr &middot; 11:45 am, 2:15 pm &middot; Activity level: Moderate &middot; <strong>$39</strong>/guest</p>
+          <p>Portland's neighborhoods beyond the Old Port, from the Portland Observatory to the Eastern Promenade.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/PW98?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🦞 Peaks Island Lobster Bake Tour</h4>
+          <p>3 hr 30 min &middot; 1:45 pm &middot; Activity level: Moderate &middot; <strong>$254</strong>/adult &middot; $203/child</p>
+          <p>A ferry across Casco Bay to Peaks Island for a classic New England lobster bake.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y9Q0?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>📸 Destination Highlight: Portland Panoramic</h4>
+          <p>2 hr &middot; 10:45 am &middot; Activity level: Mild &middot; <strong>$86</strong>/adult &middot; $49/child</p>
+          <p>The Eastern Promenade and downtown Portland's restored 19th-century architecture, by motor coach.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y6GM?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🍽️ Small Group: Culinary Walking Tour of Portland</h4>
+          <p>2 hr &middot; 1:30 pm &middot; Activity level: Moderate &middot; <strong>$206</strong>/adult &middot; $143/child</p>
+          <p>"America's foodiest small town" — a leisurely tasting walk through the working waterfront and Old Port.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/PWA1?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🚂 Destination Highlight: Conway Scenic Railroad</h4>
+          <p>7 hr 30 min &middot; 9:30 am &middot; Activity level: Moderate &middot; <strong>$386</strong>/adult &middot; $306/child</p>
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/conway-railroad.jpg" alt="A restored red locomotive at the Conway Scenic Railroad freight house">
+            <figcaption>A restored Boston &amp; Maine locomotive at Conway Scenic Railroad's North Conway station. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Conway_Scenic_locomotive_4268.JPG" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 3.0)</span></figcaption>
+          </figure>
+          <p>Undertake a captivating journey through stunning landscapes and charming New England towns aboard the historic Conway Scenic Railroad.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y8CI?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>⛵ Destination Highlight: Kennebunkport and Dock Square</h4>
+          <p>3 hr 30 min &middot; 10:30 am, 3:30 pm &middot; Activity level: Mild &middot; <strong>$73</strong>/adult &middot; $52/child</p>
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/kennebunkport-dock-square.jpg" alt="Dock Square in Kennebunkport, with shops and an American flag">
+            <figcaption>Dock Square, the heart of Kennebunkport — shops and galleries in former 18th-century warehouses. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Dock_Square,_Kennebunkport,_ME.jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 3.0)</span></figcaption>
+          </figure>
+          <p>The picturesque summer-home village of Kennebunkport and the shops of Dock Square.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/PW91?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🦞 Destination Highlight: Best of Maine</h4>
+          <p>7 hr &middot; 11:30 am &middot; Activity level: Moderate &middot; <strong>$260</strong>/adult &middot; $211/child</p>
+          <p>Maine's rugged coast, Fort Williams Park, and a lobster roll lunch in Kennebunkport — a full sampler of the state.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/PW97?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🚋 Destination Highlight: Kennebunkport &amp; Seashore Trolley Museum</h4>
+          <p>4 hr &middot; 2:00 pm, 2:45 pm &middot; Activity level: Mild &middot; <strong>$115</strong>/adult &middot; $68/child</p>
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/seashore-trolley-museum.jpg" alt="A row of vintage trolleys and buses on display at the Seashore Trolley Museum">
+            <figcaption>Vintage trolleys at the Seashore Trolley Museum — the world's first and largest museum of mass transit vehicles. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Buses_on_display_at_Seashore_Trolley_Museum,_June_2007.jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 3.0)</span></figcaption>
+          </figure>
+          <p>Kennebunkport's rocky coast plus a ride on a vintage trolley at the Seashore Trolley Museum.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y6GN?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>💡 Destination Highlight: Portland Highlights and Lighthouse</h4>
+          <p>2 hr &middot; 11:00 am &middot; Activity level: Mild &middot; <strong>$92</strong>/guest</p>
+          <p>The Old Port's red-brick warehouse district, now home to shops and pubs, plus a Portland-area lighthouse.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/PW92?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>⛴️ Destination Highlight: Portland by Land and Sea</h4>
+          <p>4 hr &middot; 10:45 am &middot; Activity level: Moderate &middot; <strong>$192</strong>/adult &middot; $154/child</p>
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/portland-head-light.jpg" alt="Portland Head Light on a rocky point with the keeper's house">
+            <figcaption>Portland Head Light, seen from the water on this tour's boat leg. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Portland_Head_Light_-_Cape_Elizabeth_-_Maine_-_USA.jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 4.0)</span></figcaption>
+          </figure>
+          <p>The Old Port on land, then Maine's most-photographed lighthouse, Portland Head Light, from the water.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/PW95?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>💡 Destination Highlight: Lighthouses of Maine</h4>
+          <p>3 hr 30 min &middot; 2:30 pm, 3:00 pm &middot; Activity level: Mild &middot; <strong>$109</strong>/adult &middot; $87/child</p>
+          <p>The Liberty Ship Memorial and three of Maine's historic lighthouses along its rocky coastline.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/PW94?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>⛵ Destination Highlight: Kennebunkport Panoramic and Scenic Cruise</h4>
+          <p>4 hr 45 min &middot; 10:30 am &middot; Activity level: Moderate &middot; <strong>$136</strong>/adult &middot; $109/child</p>
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/kennebunkport-dock-square.jpg" alt="Dock Square in Kennebunkport, with shops and an American flag">
+            <figcaption>Dock Square in Kennebunkport, on the drive before this tour's boat cruise. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Dock_Square,_Kennebunkport,_ME.jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 3.0)</span></figcaption>
+          </figure>
+          <p>A drive past Kennebunkport's Federal and Victorian-style mansions, then a boat cruise along the coastline.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/PW96?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+        </section>
+
+        <section>
+          <h2 data-toc="Boston">Day 12 — Boston, Massachusetts 🔔</h2>
+          <p>Disembarkation day — both remaining excursions are built for it, ending with an
+          airport drop-off for anyone flying out same-day.</p>
+
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/boston-faneuil-hall.jpg" alt="The bell tower and golden cupola of Faneuil Hall in Boston">
+            <figcaption>Faneuil Hall's bell tower and gilded grasshopper weathervane — a Freedom Trail landmark since 1742. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Faneuil_Hall,_Boston_(493567)_(11061765625).jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY 2.0)</span></figcaption>
+          </figure>
+
+          <h4>🔭 View Boston (With Airport Drop-Off)</h4>
+          <p>3 hr 30 min &middot; 9:00 am &middot; Activity level: Mild &middot; <strong>$134</strong>/adult &middot; $101/child</p>
+          <p>360-degree views and interactive exhibits at an observation deck, covering the essentials of the city before your flight.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/Y9Q4?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+
+          <h4>🚶 Destination Highlight: Scenic Boston City Tour (With Airport Drop-Off)</h4>
+          <p>2 hr 30 min &middot; 9:00 am &middot; Activity level: Mild &middot; <strong>$106</strong>/adult &middot; $79/child</p>
+          <figure>
+            <img src="images/cousins-cruise-2027-companion/boston-freedom-trail.jpg" alt="The red brick path marking Boston's Freedom Trail">
+            <figcaption>The Freedom Trail's red-brick path, linking 16 historic sites across 2.5 miles of the city. <span class="sg-figure-source">- Source: <a href="https://commons.wikimedia.org/wiki/File:Boston_Freedom_Trail_path.jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 3.0)</span></figcaption>
+          </figure>
+          <p>Freedom Trail landmarks — the Old State House, Beacon Hill — on the way to a same-day flight home.</p>
+          <p class="sg-map-link">🎟️ <a href="https://www.celebritycruises.com/account/cruise-planner/category/shorex/product/BX76?shipCode=SI&sailDate=20270924&bookingId=1108363" target="_blank" rel="noopener">View &amp; book on Celebrity Cruises</a></p>
+        </section>
+
+        <section>
+          <h2>Glossary</h2>
+          <table>
+            <thead><tr><th>Term</th><th>Definition</th></tr></thead>
+            <tbody>
+              <tr><td>Activity level: Mild</td><td>Easy walking on mostly even ground — comfortable for most guests.</td></tr>
+              <tr><td>Activity level: Moderate</td><td>Some walking or standing over a longer stretch, possibly on uneven ground.</td></tr>
+              <tr><td>Activity level: Strenuous</td><td>Extended walking, hills, stairs, or a faster pace than the other two levels.</td></tr>
+              <tr><td>Cabot Trail</td><td>A scenic highway looping through the Cape Breton Highlands, Nova Scotia.</td></tr>
+              <tr><td>Ceilidh</td><td>Gaelic for "visit" — a traditional gathering of live folk music and dance, common in Nova Scotia's Celtic communities.</td></tr>
+              <tr><td>Home port / round-trip</td><td>This cruise departs from and returns to the same city — Boston — rather than ending somewhere different.</td></tr>
+              <tr><td>Overnight port call</td><td>A stop where the ship stays docked into the next day, giving two separate excursion days at one port — Québec City on this cruise.</td></tr>
+              <tr><td>Sea day</td><td>A day with no port call — the ship is underway all day, and no shore excursions are offered.</td></tr>
+              <tr><td>Shore excursion</td><td>An optional, separately booked tour or activity at a port, run by a local operator and sold through the cruise line.</td></tr>
+              <tr><td>Shorex</td><td>Cruise-industry shorthand for "shore excursion" — shows up in the booking URLs throughout this guide.</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <button class="sg-back-to-top" id="sg-back-to-top" title="Back to top">
+    <svg class="sg-icon" aria-hidden="true"><use href="#icon-arrow-up"></use></svg>
+  </button>
+  <script src="assets/script.js?v=20260920b"></script>
+
+  <!-- ---------- Trip Map (GIS-style overview, "Trip Map" section) ---------- -->
+  <script type="application/json" id="sg-tripmap-data">
+[{"name":"Flynn Cruiseport Boston — Embarkation","kind":"stay","city":"Boston (Embarkation)","role":"start","terminalName":"Flynn Cruiseport Boston","lat":42.3396,"lon":-71.0356,"mapsQuery":"Flynn Cruiseport Boston","images":[]},{"name":"Rockland, Maine","kind":"stay","city":"Rockland","lat":44.1034,"lon":-69.1089,"mapsQuery":"Rockland, Maine","images":["images/cousins-cruise-2027-companion/camden-harbor-mount-battie.jpg"]},{"name":"Halifax, Nova Scotia","kind":"stay","city":"Halifax","lat":44.6488,"lon":-63.5752,"mapsQuery":"Halifax, Nova Scotia","images":["images/cousins-cruise-2027-companion/halifax-public-gardens.jpg"]},{"name":"Sydney, Nova Scotia","kind":"stay","city":"Sydney","lat":46.1368,"lon":-60.1942,"mapsQuery":"Sydney, Nova Scotia","images":["images/cousins-cruise-2027-companion/big-fiddle-sydney.jpg"]},{"name":"Québec City, Québec","kind":"stay","city":"Quebec City","lat":46.8123,"lon":-71.2028,"mapsQuery":"Quebec City, Quebec","images":["images/cousins-cruise-2027-companion/chateau-frontenac-2.jpg"]},{"name":"Charlottetown, Prince Edward Island","kind":"stay","city":"Charlottetown","lat":46.2382,"lon":-63.1311,"mapsQuery":"Charlottetown, PEI","images":["images/cousins-cruise-2027-companion/charlottetown-waterfront.jpg"]},{"name":"Portland, Maine","kind":"stay","city":"Portland","lat":43.6591,"lon":-70.2568,"mapsQuery":"Portland, Maine","images":["images/cousins-cruise-2027-companion/portland-head-light.jpg"]},{"name":"Flynn Cruiseport Boston — Disembarkation","kind":"stay","city":"Boston (Disembarkation)","role":"end","terminalName":"Flynn Cruiseport Boston","lat":42.3396,"lon":-71.0356,"mapsQuery":"Flynn Cruiseport Boston","images":[]},{"name":"Camden Harbor & Mount Battie","kind":"poi","city":"Rockland","lat":44.2098,"lon":-69.0645,"mapsQuery":"Camden, Maine","images":["images/cousins-cruise-2027-companion/camden-harbor-mount-battie.jpg"]},{"name":"Owls Head Light","kind":"poi","city":"Rockland","lat":44.0912,"lon":-69.0392,"mapsQuery":"Owls Head Light, Maine","images":["images/cousins-cruise-2027-companion/owls-head-light.jpg"]},{"name":"Peggy's Cove Lighthouse","kind":"poi","city":"Halifax","lat":44.4918,"lon":-63.9170,"mapsQuery":"Peggy's Cove, Nova Scotia","images":["images/cousins-cruise-2027-companion/peggys-cove-lighthouse.jpg"]},{"name":"Fortress of Louisbourg","kind":"poi","city":"Sydney","lat":45.9014,"lon":-59.9758,"mapsQuery":"Fortress of Louisbourg","images":["images/cousins-cruise-2027-companion/fortress-louisbourg-1.jpg"]},{"name":"Château Frontenac","kind":"poi","city":"Quebec City","lat":46.8123,"lon":-71.2048,"mapsQuery":"Chateau Frontenac, Quebec City","images":["images/cousins-cruise-2027-companion/chateau-frontenac-2.jpg"]},{"name":"Montmorency Falls","kind":"poi","city":"Quebec City","lat":46.8867,"lon":-71.1497,"mapsQuery":"Montmorency Falls, Quebec","images":["images/cousins-cruise-2027-companion/montmorency-falls.jpg"]},{"name":"Green Gables Heritage Place","kind":"poi","city":"Charlottetown","lat":46.5001,"lon":-63.3838,"mapsQuery":"Green Gables Heritage Place, Cavendish, PEI","images":["images/cousins-cruise-2027-companion/green-gables.jpg"]},{"name":"Confederation Bridge","kind":"poi","city":"Charlottetown","lat":46.1998,"lon":-63.7581,"mapsQuery":"Confederation Bridge, PEI","images":["images/cousins-cruise-2027-companion/confederation-bridge.jpg"]},{"name":"Portland Head Light","kind":"poi","city":"Portland","lat":43.6229,"lon":-70.2076,"mapsQuery":"Portland Head Light, Cape Elizabeth, Maine","images":["images/cousins-cruise-2027-companion/portland-head-light.jpg"]},{"name":"Kennebunkport / Dock Square","kind":"poi","city":"Portland","lat":43.3617,"lon":-70.4762,"mapsQuery":"Dock Square, Kennebunkport, Maine","images":["images/cousins-cruise-2027-companion/kennebunkport-dock-square.jpg"]},{"name":"Faneuil Hall","kind":"poi","city":"Boston (Disembarkation)","lat":42.3600,"lon":-71.0568,"mapsQuery":"Faneuil Hall, Boston","images":["images/cousins-cruise-2027-companion/boston-faneuil-hall.jpg"]}]
+  </script>
+  <script type="application/json" id="sg-tripmap-config">
+{"routeOrder":["Boston (Embarkation)","Rockland","Halifax","Sydney","Quebec City","Charlottetown","Portland","Boston (Disembarkation)"],"legDates":{"Boston (Embarkation)":{"range":"Fri 9/24","days":1},"Rockland":{"range":"Sat 9/25","days":1},"Halifax":{"range":"Sun 9/26","days":1},"Sydney":{"range":"Mon 9/27","days":1},"Quebec City":{"range":"Wed 9/29 – Thu 9/30","days":2},"Charlottetown":{"range":"Sat 10/2","days":1},"Portland":{"range":"Mon 10/4","days":1},"Boston (Disembarkation)":{"range":"Tue 10/5","days":1}}}
+  </script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+</body>
+</html>

@@ -1,0 +1,1366 @@
+/*
+  study-guide-maker shared stylesheet
+  Master copy: C:\vc\config\claude\skills\study-guide-maker\assets\style.css
+  Deployed copy (what guides actually link to): C:\vc\apps\StudyGuides\assets\style.css
+  Edit the master, then re-copy over the deployed copy so every existing guide re-themes at once.
+
+  Every guide links this via "assets/style.css?v=YYYYMMDD" (see template.html), not a bare path
+  — GitHub Pages / browsers otherwise cache this aggressively and a returning visitor can sit on
+  a stale copy indefinitely after an update. Bump the ?v= date on EVERY guide's <script>/<link>
+  tag (a repo-wide find/replace, both this file and script.js share one version string) whenever
+  either shared asset changes, in the same commit as the change itself.
+*/
+
+:root {
+  --bg: #f7f6f3;
+  --bg-elevated: #ffffff;
+  --text: #1f2320;
+  --text-dim: #5a6058;
+  --border: #ddd8cf;
+  --accent: #2f6f4f;
+  --accent-soft: #e6f1ea;
+  --accent-contrast: #ffffff;
+  --code-bg: #eef0ec;
+  --tip-bg: #eaf3ff;
+  --tip-border: #7fb2ec;
+  --formula-bg: #fff8e6;
+  --formula-border: #e0b94d;
+  --warning-bg: #fdecea;
+  --warning-border: #e08a7d;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --badge-beginner: #4a8a5c;
+  --badge-intermediate: #b9861f;
+  --badge-expert: #a3423f;
+  --max-width: 920px;
+  /* Trip Map marker colors (see "Trip Map" block below) — stays reuse --accent so the route
+     line and "home base" pins read as one family; food and sights get their own hues so the
+     three pin kinds are tellable apart at a glance even before reading the legend. A guide with
+     its own accent palette (e.g. a trip guide's flag-inspired theme override) can override these
+     two alongside its other --accent overrides; these are just the default-theme values. */
+  --map-food: #b9791f;
+  --map-poi: #3c6ea5;
+  --map-terminal: #c8452d;
+}
+
+:root[data-theme="dark"] {
+  --bg: #1a1c19;
+  --bg-elevated: #23261f;
+  --text: #e8e6df;
+  --text-dim: #a3a89c;
+  --border: #3a3d35;
+  --accent: #6fbf8f;
+  --accent-soft: #223a2c;
+  --accent-contrast: #0e130f;
+  --code-bg: #2a2d25;
+  --tip-bg: #1c2a38;
+  --tip-border: #3f6f9e;
+  --formula-bg: #332c15;
+  --formula-border: #8a6d1f;
+  --warning-bg: #3a2320;
+  --warning-border: #8a4a42;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --map-food: #d9a54c;
+  --map-poi: #7ea3d9;
+  --map-terminal: #f0785f;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1a1c19;
+    --bg-elevated: #23261f;
+    --text: #e8e6df;
+    --text-dim: #a3a89c;
+    --border: #3a3d35;
+    --accent: #6fbf8f;
+    --accent-soft: #223a2c;
+    --accent-contrast: #0e130f;
+    --code-bg: #2a2d25;
+    --tip-bg: #1c2a38;
+    --tip-border: #3f6f9e;
+    --formula-bg: #332c15;
+    --formula-border: #8a6d1f;
+    --warning-bg: #3a2320;
+    --warning-border: #8a4a42;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    --map-food: #d9a54c;
+    --map-poi: #7ea3d9;
+  --map-terminal: #f0785f;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+}
+
+/* ---------- Themed scrollbars (default OS scrollbars clash with the dark theme) ---------- */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) var(--bg);
+}
+html::-webkit-scrollbar { width: 11px; }
+html::-webkit-scrollbar-track { background: var(--bg); }
+html::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; border: 2px solid var(--bg); }
+html::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+.sg-layout {
+  display: flex;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+/* The main content column. Was previously an inline style="" duplicated in every guide's HTML
+   instead of living here — moved 2026-08-05 so it's a single shared rule like everything else. */
+.sg-main-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* ---------- Header ---------- */
+
+.sg-header {
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  padding: 1.1rem clamp(1rem, 4vw, 3rem);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  box-shadow: var(--shadow);
+}
+
+.sg-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.sg-title {
+  margin: 0;
+  font-size: clamp(1.4rem, 3vw, 2rem);
+}
+
+/* Generated-date + scope badges — now live inside the #sg-info-popover, not inline in the
+   header (removed 2026-08-05 along with the level-filter checkboxes, to stop three lines of
+   metadata from permanently eating header height). */
+.sg-meta {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  margin: 0 0 0.6rem;
+}
+
+.sg-badges { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+
+.sg-badge {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.sg-controls { display: flex; gap: 0.5rem; align-items: center; }
+
+.sg-btn {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.sg-btn:hover { border-color: var(--accent); color: var(--accent); }
+.sg-btn-icon { padding: 0.35rem 0.55rem; font-size: 1.05rem; line-height: 1; justify-content: center; }
+
+/* ---------- Icon sprite instances ----------
+   <svg class="sg-icon"><use href="#icon-name"></use></svg> against the hidden <symbol> sprite
+   at the top of <body> (template.html). Symbols are bare shapes with no stroke/fill baked in —
+   fill/stroke/color here are what make every instance theme-switch and recolor per-context for
+   free (a callout's icon just inherits that callout's accent color, etc.). */
+.sg-icon {
+  width: 1em;
+  height: 1em;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.sg-btn .sg-icon { width: 1.05em; height: 1.05em; }
+.sg-callout-title .sg-icon { width: 1.1em; height: 1.1em; stroke-width: 2.25; }
+.sg-back-to-top .sg-icon { width: 1.3em; height: 1.3em; }
+
+/* Info (i) popover — click to reveal the Generated date + scope badges */
+.sg-info-wrap { position: relative; }
+.sg-info-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 260px;
+  max-width: min(340px, 80vw);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  padding: 0.9rem 1rem 0.4rem;
+  z-index: 25;
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.sg-info-wrap.sg-info-open .sg-info-popover {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.sg-info-wrap.sg-info-open #sg-info-toggle { border-color: var(--accent); color: var(--accent); }
+
+/* ---------- Layout: TOC + main ---------- */
+
+/* .sg-toc is a sticky flex column with two children: the always-visible .sg-toc-rail (the
+   toggle buttons — must survive collapse so there's always a way back to expanded) and the
+   collapsible .sg-toc-body (title + auto-built nav). Collapsing shrinks the whole column to a
+   slim rail-only width rather than hiding it — a fully-hidden trigger button is a dead end. */
+.sg-toc {
+  width: 250px;
+  flex: 0 0 250px;
+  position: sticky;
+  /* Deliberately top: 0, NOT --sg-header-offset — the sticky header only spans the main
+     content column (.sg-main-wrap), it never covers the sidebar column, so there is nothing
+     for the TOC to duck under. Using the header offset here just left a dead gap above the
+     rail buttons for no reason. */
+  top: 0;
+  align-self: flex-start;
+  max-height: calc(100vh - 16px);
+  display: flex;
+  flex-direction: column;
+  font-size: 0.85rem;
+  transition: width 0.2s ease, flex-basis 0.2s ease;
+  overflow: hidden;
+}
+/* html.sg-toc-pref-collapsed is set by a tiny inline <script> at the top of <body>, applied
+   synchronously before the sidebar is ever painted — this is what actually prevents the
+   expand-then-snap-shut flash on load; .sg-toc.sg-toc-collapsed (added later by script.js) is
+   what the click handler toggles going forward. Both selectors must stay in sync (see
+   initTocToggle() in script.js) or the two can disagree after a click. */
+.sg-toc.sg-toc-collapsed,
+html.sg-toc-pref-collapsed .sg-toc {
+  width: 46px;
+  flex: 0 0 46px;
+}
+.sg-toc.sg-toc-collapsed .sg-toc-body,
+html.sg-toc-pref-collapsed .sg-toc-body { display: none; }
+.sg-toc.sg-toc-collapsed .sg-toc-rail,
+html.sg-toc-pref-collapsed .sg-toc-rail { align-items: center; padding: 1.25rem 0.3rem 0.75rem; }
+.sg-toc.sg-toc-collapsed #sg-toc-collapse-all,
+html.sg-toc-pref-collapsed #sg-toc-collapse-all { display: none; } /* nothing visible to collapse */
+/* Rail-only mode has no room for button text — icon stays, label hides (script.js keeps the
+   label's textContent up to date regardless; this just controls whether it's shown). */
+.sg-toc.sg-toc-collapsed .sg-toc-rail .sg-btn,
+html.sg-toc-pref-collapsed .sg-toc-rail .sg-btn { justify-content: center; padding: 0.4rem; }
+.sg-toc.sg-toc-collapsed #sg-toc-toggle .sg-btn-label,
+html.sg-toc-pref-collapsed #sg-toc-toggle .sg-btn-label,
+.sg-toc.sg-toc-collapsed #sg-toc-refresh .sg-btn-label,
+html.sg-toc-pref-collapsed #sg-toc-refresh .sg-btn-label { display: none; }
+
+.sg-toc-rail {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1.25rem 1rem 0.75rem;
+}
+.sg-toc-rail .sg-btn {
+  font-size: 0.72rem;
+  padding: 0.32rem 0.5rem;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.sg-toc-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 1rem 1.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.sg-toc-body::-webkit-scrollbar { width: 8px; }
+.sg-toc-body::-webkit-scrollbar-track { background: transparent; }
+.sg-toc-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.sg-toc-body::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+/* padding-left is deliberately bigger than it looks like it needs to be: a top-level (H2) row's
+   own decorations (caret + gap + its own left padding) already eat ~26px before the label text
+   starts, so the sub-list needs enough of its own indent on top of that to still land H3 label
+   text to the right of H2 label text above it — verified via getBoundingClientRect() on real
+   rendered labels, not just by eyeballing the CSS box model (the naive box-model estimate was
+   off by several px from the measured DOM). */
+.sg-toc nav ul { list-style: none; padding-left: 1.55rem; margin: 0; }
+.sg-toc nav > ul { padding-left: 0; }
+
+/* Per-section (H2) collapse toggle — only added when a section actually has sub-items */
+.sg-toc-row { display: flex; align-items: center; gap: 0.15rem; }
+/* Extra ".sg-toc" ancestor class (not just ".sg-toc-row a") is deliberate: it bumps this
+   selector's specificity above the plain ".sg-toc a" rule below, which sets its own
+   padding-left and previously won this tie regardless of source order (equal specificity,
+   later-in-file wins) — silently cancelling this rule and pushing H2 entries with sub-items
+   further right than intended. */
+.sg-toc .sg-toc-row a { flex: 1; padding-left: 0.2rem; }
+.sg-toc-caret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 0.95rem;
+  transition: transform 0.15s ease;
+  user-select: none;
+}
+.sg-toc-caret:hover { color: var(--accent); }
+.sg-toc-section.sg-toc-section-collapsed > .sg-toc-row .sg-toc-caret { transform: rotate(-90deg); }
+.sg-toc-section.sg-toc-section-collapsed > ul { display: none; }
+/* Empty stand-in (no glyph, no interaction) for a top-level entry with no sub-items — same
+   width/height as a real .sg-toc-caret so its label's text still lands at the same horizontal
+   position as every other H2 entry's label, collapsible or not. */
+.sg-toc-caret-spacer { cursor: default; pointer-events: none; }
+.sg-toc-caret-spacer:hover { color: var(--text-dim); }
+
+.sg-toc a {
+  display: flex;
+  align-items: center;
+  padding: 0.2rem 0;
+  color: var(--text-dim);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  padding-left: 0.6rem;
+}
+.sg-toc a:hover { color: var(--accent); }
+.sg-toc a.active { color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+
+/* Header (H2) vs. subheader (H3) importance is conveyed by typography alone — bolder + slightly
+   larger for top-level entries, lighter + slightly smaller for nested ones — so the sidebar
+   never needs a separate "this is a main header" marker element to make that legible. A small
+   filled bullet (icon-circle) used to be auto-inserted in front of every H2 entry by buildToc()
+   in script.js; removed 2026-08-07 along with the numbered "1. " prefix that used to reach the
+   sidebar via the raw heading text (see script.js's tocLabel()/data-toc) — together those two
+   were why an H2 entry's own label used to sit further right than its H3 children directly
+   below it (triangle + bullet + numeral all stacked before the text even started). The
+   icon-circle sprite symbol itself is left in template.html, unused but harmless, in case a
+   future guide wants a bullet marker for something unrelated. Every H2 entry is always wrapped
+   in a .sg-toc-row (real caret or an invisible .sg-toc-caret-spacer when it has no sub-items —
+   see buildToc() in script.js), so this only needs the one selector, not a row/no-row pair. */
+.sg-toc nav > ul > li > .sg-toc-row > a {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+.sg-toc nav ul ul a {
+  font-weight: 400;
+  font-size: 0.82rem;
+}
+.sg-toc-title { font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; color: var(--text-dim); margin-bottom: 0.5rem; }
+.sg-toc-title-row { display: flex; align-items: center; justify-content: space-between; }
+/* Mobile-drawer-only top bar: the close (X) button, plus — once initControlsRelocation() in
+   script.js moves them here at mobile widths — the info and theme-toggle buttons that no
+   longer fit in the narrow phone header. Hidden entirely on desktop; positioned as a floating
+   overlay only inside the mobile breakpoint media query below. */
+.sg-toc-topbar { display: none; }
+
+/* ---------- Mobile nav: hamburger button + slide-out TOC drawer ---------- */
+/* Hidden on desktop by default; only shown under the mobile breakpoint media query below,
+   where it replaces the persistent sidebar as the way to reach the TOC. */
+.sg-mobile-menu-btn { display: none; }
+
+/* Backdrop behind the slide-out drawer — desktop's persistent sidebar has no equivalent.
+   display:none (not just opacity/pointer-events) when closed so it can never intercept clicks
+   on a desktop-width page even if the mobile-open class were somehow left set. */
+.sg-toc-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 55;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.sg-toc-backdrop.sg-toc-mobile-open {
+  display: block;
+  opacity: 1;
+}
+
+.sg-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 2rem clamp(1rem, 4vw, 3rem) 6rem;
+}
+
+/* ---------- Content elements ---------- */
+
+.sg-main h2 {
+  border-bottom: 2px solid var(--accent);
+  padding-bottom: 0.3rem;
+  margin-top: 2.5rem;
+  /* Matches the sticky header's real measured height (set by script.js) — never a guess,
+     since header height varies with title length/wrap and viewport width. */
+  scroll-margin-top: var(--sg-header-offset, 120px);
+}
+/* The very first heading in the guide doesn't need its own top margin on top of .sg-main's own
+   padding-top — that 2.5rem margin exists to separate one section from the section above it,
+   and there is no section above the first one. Without this, the two stacked (32px padding +
+   40px margin = 72px) to leave an oversized gap under the header before any content appeared. */
+.sg-main > section:first-child > h2:first-child,
+.sg-main > h2:first-child {
+  margin-top: 0;
+}
+.sg-main h3 { scroll-margin-top: var(--sg-header-offset, 120px); margin-top: 1.75rem; }
+.sg-main h4 { scroll-margin-top: var(--sg-header-offset, 120px); }
+
+/* Cap prose to a readable line length (--max-width) even though .sg-main itself can be much
+   wider — tables, figures, and callouts are left unconstrained since they benefit from the
+   extra width (a wide comparison table shouldn't wrap awkwardly to match paragraph width). */
+.sg-main p, .sg-main ul, .sg-main ol {
+  max-width: var(--max-width);
+}
+
+.sg-level-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.1rem 0.5rem;
+  border-radius: 4px;
+  color: #fff;
+  vertical-align: middle;
+  margin-left: 0.5rem;
+  /* Fallback background for plain (unmodified) usage — e.g. a date-range badge on a trip-guide
+     heading, not a beginner/intermediate/expert label. Without this, color:#fff on no
+     background at all is nearly invisible in light mode. The modifier rules below still win
+     via higher specificity (two classes) when one is present. */
+  background: var(--accent);
+}
+.sg-level-badge.beginner { background: var(--badge-beginner); }
+.sg-level-badge.intermediate { background: var(--badge-intermediate); }
+.sg-level-badge.expert { background: var(--badge-expert); }
+
+/* display:block (not the default table/table-row-group/table-cell trio) turns the table itself
+   into a plain scrollable box — width:max-content lets it size naturally to its columns up to
+   max-width:100% of its container, then overflow-x:auto scrolls internally past that instead of
+   stretching .sg-main/body wider than the viewport. Same fix GitHub uses for wide markdown
+   tables. Without this, a table with several columns or a long unbreakable cell (a currency
+   range next to a prose Notes column, say) forced the whole page into horizontal scroll on
+   mobile — the table's min-content width has to fit somewhere, and with a plain
+   width:100% table that "somewhere" was every ancestor up to <body>. */
+table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+th, td {
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.7rem;
+  text-align: left;
+}
+th { background: var(--accent-soft); }
+tr:nth-child(even) td { background: rgba(0,0,0,0.02); }
+
+code {
+  background: var(--code-bg);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 0.9em;
+}
+pre {
+  background: var(--code-bg);
+  padding: 1rem;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+pre code { background: none; padding: 0; }
+
+.sg-callout {
+  border-left: 4px solid var(--border);
+  border-radius: 6px;
+  padding: 0.8rem 1rem;
+  margin: 1.2rem 0;
+  background: var(--bg-elevated);
+}
+.sg-callout-title { font-weight: 700; margin-bottom: 0.3rem; display: flex; align-items: center; gap: 0.4rem; }
+.sg-callout.tip { background: var(--tip-bg); border-color: var(--tip-border); }
+.sg-callout.formula { background: var(--formula-bg); border-color: var(--formula-border); }
+.sg-callout.warning { background: var(--warning-bg); border-color: var(--warning-border); }
+.sg-callout.tip .sg-callout-title .sg-icon { color: var(--tip-border); }
+.sg-callout.formula .sg-callout-title .sg-icon { color: var(--formula-border); }
+.sg-callout.warning .sg-callout-title .sg-icon { color: var(--warning-border); }
+
+/* Capped at a fixed max-width (not just 100% of the content column) so a photo dropped in at
+   full camera resolution (a real guide has shipped source photos as large as 4032x3024) doesn't
+   render edge-to-edge of a wide desktop content column or eat most of a phone screen's height in
+   one scroll — max-width centers it as a reasonably-sized illustration instead of a dominant
+   hero image. figure img's max-height is the second half of that: on a normal (~4:3 or wider)
+   photo the max-width above is what actually binds, but a portrait-oriented photo needs its own
+   height ceiling too or it can still run tall. Both constraints together, with width/height left
+   auto, let the browser pick whichever is more restrictive while preserving aspect ratio — the
+   standard replaced-element sizing algorithm, not something that needs object-fit/a wrapper. */
+figure {
+  margin: 1.5rem auto;
+  max-width: 640px;
+  text-align: center;
+}
+figure img {
+  max-width: 100%;
+  max-height: 65vh;
+  width: auto;
+  height: auto;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  cursor: zoom-in;
+}
+figcaption {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-top: 0.5rem;
+  line-height: 1.45;
+}
+figcaption a { color: var(--text-dim); }
+/* The attribution half of a caption ("Source: ...") is visual noise mixed in with the
+   description if it just runs on in the same line — display:block puts it on its own line
+   (right after the description text with no wrapper needed on the description itself), and the
+   smaller size + leading dash (written as literal text, not CSS generated content — consistent
+   with how this template writes other literal prefixes rather than reaching for ::before) reads
+   as a subordinate credit line rather than a continuation of the caption's own sentence. */
+.sg-figure-source {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.78rem;
+  opacity: 0.85;
+}
+
+.sg-map-link {
+  margin: 0.35rem 0 1.1rem;
+  font-size: 0.85rem;
+}
+.sg-map-link a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+.sg-map-link a:hover { border-bottom-color: var(--accent); }
+
+.sg-figure-row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.sg-figure-row figure { flex: 1 1 260px; max-width: 360px; }
+
+/* ---------- Swipeable photo carousel (3-5 photos per POI) ---------- */
+/* One <figure> per photo, same markup a single-image POI already uses — just wrapped in
+   .sg-carousel > .sg-carousel-track instead of standing alone. CSS scroll-snap does the actual
+   swipe/drag behavior natively (real touch momentum, no JS gesture math to get wrong); JS
+   (initCarousels() in script.js) only handles the dot indicators, the prev/next buttons, and
+   feeding the whole image set into the tap-to-fullscreen lightbox at the tapped index — see
+   initLightbox()'s groupFor() there for how a carousel's slides become one lightbox group
+   instead of the single-image case's group-of-one. */
+.sg-carousel {
+  position: relative;
+  margin: 1.5rem auto;
+  max-width: 640px;
+}
+.sg-carousel-track {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.sg-carousel-track::-webkit-scrollbar { display: none; }
+/* Reuses the plain <figure>/figcaption rules above for everything except sizing — a slide needs
+   to fill the track's full width and stop scaling/centering itself the way a standalone figure
+   does, since the track (not the figure) now owns the carousel's overall width. */
+.sg-carousel-track > figure {
+  flex: 0 0 100%;
+  scroll-snap-align: center;
+  margin: 0;
+  max-width: none;
+  box-sizing: border-box;
+  padding: 0 2px;
+}
+.sg-carousel-track > figure img { max-width: 100%; width: 100%; object-fit: contain; }
+.sg-carousel-arrow {
+  position: absolute;
+  top: 40%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 1.2rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  opacity: 0.9;
+}
+.sg-carousel-arrow:hover { opacity: 1; border-color: var(--accent); color: var(--accent); }
+.sg-carousel-arrow.sg-carousel-prev { left: -4px; }
+.sg-carousel-arrow.sg-carousel-next { right: -4px; }
+.sg-carousel-arrow:disabled { opacity: 0.25; cursor: default; }
+.sg-carousel-arrow:disabled:hover { border-color: var(--border); color: var(--text); }
+.sg-carousel-dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+}
+.sg-carousel-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  background: var(--border);
+  cursor: pointer;
+}
+.sg-carousel-dot.active { background: var(--accent); }
+
+/* ---------- HTML/CSS diagram components ---------- */
+/* Prefer these over hand-coded SVG for any box/arrow/panel-shaped diagram — comparisons,
+   layered relationships, simple flows. Flexbox auto-sizes every box to its content and
+   auto-positions everything in the row, which structurally prevents the two bugs manual SVG
+   coordinate math produced (text overflowing its container; two elements landing on top of
+   each other from bad arithmetic) — see SKILL.md's "Plan visuals" step for when to reach for
+   this vs. an actual `.svg` file. Bonus: inherits the theme automatically (dark/light mode
+   "just works" — these are just var()-driven colors, not baked-in SVG fill attributes) and
+   reflows on narrow screens, which a fixed-viewBox SVG never does. */
+
+.sg-diagram {
+  margin: 1.5rem 0;
+  padding: 1.25rem;
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+}
+.sg-diagram-title {
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.05rem;
+  margin-bottom: 1rem;
+}
+
+.sg-diagram-row {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.sg-diagram-panel {
+  /* flex-basis + min-width kept deliberately smaller than the row's typical available width
+     (~900px in the content column) so 3-panel rows (not just 2-panel) reliably fit on one line
+     instead of the last panel wrapping alone onto a full-width second line — verified via
+     getBoundingClientRect() after this broke in the first real diagram, not just eyeballed. */
+  flex: 1 1 200px;
+  min-width: 180px;
+  border-radius: 8px;
+  padding: 1rem;
+  border: 2px solid var(--border);
+  background: var(--bg);
+}
+.sg-diagram-panel-header { text-align: center; margin-bottom: 0.75rem; }
+.sg-diagram-panel-title { font-weight: 700; font-size: 0.95rem; }
+.sg-diagram-panel-sub { font-size: 0.8rem; color: var(--text-dim); margin-top: 0.15rem; }
+/* Color variants reuse the same palette as .sg-callout, so a diagram panel and a callout box
+   read as the same visual language rather than introducing a second color system. */
+.sg-diagram-panel.accent { border-color: var(--accent); background: var(--accent-soft); }
+.sg-diagram-panel.tip { border-color: var(--tip-border); background: var(--tip-bg); }
+.sg-diagram-panel.formula { border-color: var(--formula-border); background: var(--formula-bg); }
+.sg-diagram-panel.warning { border-color: var(--warning-border); background: var(--warning-bg); }
+.sg-diagram-panel-title.accent-text, .sg-diagram-box-title.accent-text { color: var(--accent); }
+.sg-diagram-panel-title.warning-text, .sg-diagram-box-title.warning-text { color: var(--warning-border); }
+
+.sg-diagram-box {
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  padding: 0.6rem 0.8rem;
+  margin: 0.5rem 0;
+  font-size: 0.85rem;
+}
+.sg-diagram-box.center { text-align: center; }
+.sg-diagram-box.accent { border-color: var(--accent); }
+.sg-diagram-box.tip { border-color: var(--tip-border); background: var(--tip-bg); }
+.sg-diagram-box.warning { border-color: var(--warning-border); background: var(--warning-bg); }
+.sg-diagram-box-title { font-weight: 700; }
+.sg-diagram-box-sub { font-size: 0.75rem; color: var(--text-dim); margin-top: 0.15rem; }
+
+/* Branching flow layout (a root node fanning out to N sibling columns) — for flowcharts/
+   decision trees, on top of the same .sg-diagram-box building blocks used everywhere else. */
+.sg-diagram-flow-root {
+  background: var(--text);
+  color: var(--bg);
+  border-radius: 8px;
+  padding: 0.7rem 1.5rem;
+  font-weight: 700;
+  text-align: center;
+  max-width: 320px;
+  margin: 0 auto;
+}
+.sg-diagram-flow-branches {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+.sg-diagram-flow-column {
+  flex: 1 1 200px;
+  max-width: 260px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Plain CSS-drawn organic shapes (blob, ellipse) — an alternative to SVG for simple rounded
+   forms. The blob uses four asymmetric border-radius values, a well-established CSS technique
+   for an irregular/organic outline with zero markup beyond one div. */
+.sg-diagram-shape-blob {
+  width: 90px;
+  height: 90px;
+  border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+  border: 2.5px solid currentColor;
+  margin: 1rem auto 0;
+}
+.sg-diagram-shape-ellipse {
+  width: 110px;
+  height: 80px;
+  border-radius: 50%;
+  border: 2.5px solid currentColor;
+  margin: 1rem auto 0;
+}
+.sg-diagram-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  width: 110px;
+  height: 90px;
+  margin: 1rem auto 0;
+  border: 2.5px solid currentColor;
+}
+.sg-diagram-mini-grid > div { border: 1px solid currentColor; opacity: 0.5; }
+.sg-diagram-shape-blob.accent, .sg-diagram-shape-ellipse.accent, .sg-diagram-mini-grid.accent { color: var(--accent); }
+.sg-diagram-shape-blob.tip, .sg-diagram-shape-ellipse.tip, .sg-diagram-mini-grid.tip { color: var(--tip-border); }
+.sg-diagram-shape-blob.formula, .sg-diagram-shape-ellipse.formula, .sg-diagram-mini-grid.formula { color: var(--formula-border); }
+
+/* Horizontal arrow, for a left-to-right sequence of panels (vs. .sg-diagram-arrow-down for
+   vertical flows) — an optional caption sits under the arrowhead itself. */
+.sg-diagram-arrow-right {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  flex: 0 0 auto;
+  padding: 0 0.25rem;
+  text-align: center;
+}
+.sg-diagram-arrow-right > .arrow-glyph { font-size: 1.4rem; line-height: 1; }
+.sg-diagram-arrow-right > .arrow-caption { font-size: 0.7rem; margin-top: 0.2rem; }
+
+.sg-diagram-footer.tip { background: var(--tip-bg); border: 1px solid var(--tip-border); }
+.sg-diagram-footer.formula { background: var(--formula-bg); border: 1px solid var(--formula-border); }
+.sg-diagram-footer-title { font-weight: 700; text-align: center; }
+.sg-diagram-footer-line { text-align: center; margin-top: 0.4rem; }
+.sg-diagram-footer-line.dim { color: var(--text-dim); }
+
+/* A circle with a few curved lines (meridians/parallels) — for the rare case where a shape
+   needs a genuine curve CSS can't fake. The curves are inline SVG (stroke="currentColor"),
+   NOT a separate .svg file loaded via <img> — inline SVG is part of the page's DOM, so it
+   inherits color from its CSS context and themes correctly; an externally-loaded SVG file
+   cannot (that isolation is exactly why the guide's dark mode used to leave old diagrams
+   stuck on a light card background regardless of the theme toggle). */
+.sg-diagram-globe {
+  width: 130px;
+  height: 130px;
+  margin: 1rem auto 0;
+  border-radius: 50%;
+  border: 2.5px solid currentColor;
+  overflow: hidden;
+}
+.sg-diagram-globe svg { display: block; width: 100%; height: 100%; }
+.sg-diagram-globe.accent { color: var(--accent); }
+.sg-diagram-globe.tip { color: var(--tip-border); }
+
+.sg-diagram-arrow-down {
+  display: flex;
+  justify-content: center;
+  color: var(--text-dim);
+  font-size: 1.3rem;
+  line-height: 1;
+  margin: 0.15rem 0;
+}
+.sg-diagram-arrow-down.accent { color: var(--accent); }
+
+.sg-diagram-caption {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  margin-top: 0.5rem;
+}
+
+.sg-diagram-footer {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: var(--code-bg);
+  font-size: 0.85rem;
+}
+
+/* A small inline illustration of raw CAD-style shapes — plain CSS-drawn primitives, no SVG */
+.sg-diagram-shapes {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 0.75rem;
+  border: 1.5px dashed var(--border);
+  border-radius: 6px;
+  padding: 1.25rem 0.75rem;
+  margin-top: 0.5rem;
+  background: var(--bg-elevated);
+}
+.sg-diagram-shape-line { width: 40px; height: 2px; background: var(--text); }
+.sg-diagram-shape-circle { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--text); }
+.sg-diagram-shape-rect { width: 42px; height: 28px; border: 2px solid var(--text); }
+.sg-diagram-shape-triangle {
+  width: 0; height: 0;
+  border-left: 16px solid transparent;
+  border-right: 16px solid transparent;
+  border-bottom: 26px solid var(--text);
+}
+
+details.sg-section {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 1rem 0;
+  padding: 0 1rem;
+  background: var(--bg-elevated);
+}
+details.sg-section summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.75rem 0;
+}
+details.sg-section[open] summary { border-bottom: 1px solid var(--border); }
+details.sg-section > *:not(summary) { margin-top: 0.75rem; }
+
+.sg-back-to-top {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border: none;
+  border-radius: 999px;
+  width: 42px;
+  height: 42px;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sg-back-to-top.visible { opacity: 1; pointer-events: auto; }
+
+@media (max-width: 860px) {
+  .sg-mobile-menu-btn { display: inline-flex; }
+  /* The whole top bar (close X, plus info/theme once relocated here) sits at the exact same
+     on-screen spot as the hamburger it replaces, instead of buried down in the drawer's own
+     title row — so "tap top-left to open, tap the same top-left to close" is one consistent
+     gesture, and the info/theme buttons that used to crowd the phone header live right next to
+     that same close button. This only works because .sg-toc itself carries no padding of its
+     own (only its nested .sg-toc-rail/.sg-toc-body do) and sits at the fixed left:0/top:0
+     origin when open — so an absolutely-positioned child of .sg-toc, offset by the header's own
+     padding values, lands at identical viewport coordinates to the hamburger button sitting
+     inside that header padding. top/left deliberately reuse .sg-header's exact padding values
+     (1.1rem / clamp(1rem, 4vw, 3rem)) rather than independent numbers, so the match holds
+     across the whole mobile width range, not just one breakpoint. */
+  .sg-toc-topbar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    position: absolute;
+    top: 1.1rem;
+    left: clamp(1rem, 4vw, 3rem);
+    z-index: 5;
+  }
+  /* The info popover normally opens right-anchored (growing leftward) because the header's
+     info button usually sits near the header's right edge — see the base .sg-info-popover
+     rule. Inside the drawer's top bar the button sits near the drawer's LEFT edge instead, so
+     the same right-anchor would grow the popover off the left edge of a ~300px-wide drawer.
+     Anchoring left here instead grows it rightward, back into the drawer's own width. */
+  .sg-toc-topbar .sg-info-popover {
+    left: 0;
+    right: auto;
+  }
+  /* Desktop's own Hide/Show Contents rail button is redundant with the hamburger + close (X)
+     pairing at this width, and its 46px-rail collapse state doesn't apply to an off-canvas
+     drawer — hide it rather than let both mechanisms coexist. "Collapse Sub-sections" stays,
+     since a long TOC benefits from it inside the drawer too. */
+  #sg-toc-toggle { display: none; }
+
+  /* The sidebar becomes a fixed, off-canvas drawer instead of a flex sibling column. These
+     selectors deliberately re-list the desktop-collapsed combinations
+     (.sg-toc.sg-toc-collapsed / html.sg-toc-pref-collapsed .sg-toc) at matching specificity,
+     placed after the originals in source order — equal-specificity rules resolve by source
+     order, so these win and override the 46px desktop rail width. That matters because
+     sg-toc-collapsed is a *desktop* preference persisted in localStorage; without this, a user
+     who collapsed the sidebar from a wide window would find the mobile drawer permanently
+     stuck at 46px wide the first time they opened it on a phone. Mobile's own open/closed state
+     is tracked independently via .sg-toc-mobile-open, set by initMobileToc() in script.js. */
+  .sg-toc,
+  .sg-toc.sg-toc-collapsed,
+  html.sg-toc-pref-collapsed .sg-toc {
+    display: flex;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(85vw, 300px);
+    flex: 0 0 auto;
+    max-height: 100vh;
+    max-height: 100dvh;
+    z-index: 60;
+    /* .sg-toc has no background of its own on desktop — it's just a sibling column sharing the
+       page's --bg, which needs no separate fill. As a fixed overlay on mobile it's a different
+       story: without an explicit opaque background here, the dimmed page content behind the
+       backdrop bleeds straight through the "drawer" and visually overlaps its nav text (caught
+       by an actual rendered screenshot, not by reading the CSS — see workflow notes). */
+    background: var(--bg);
+    transform: translateX(-100%);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+  /* box-shadow only while the drawer is actually open. It used to sit on the base rule above
+     and render unconditionally — box-shadow isn't clipped by the element's own transform, so
+     with the drawer translated fully off-screen (translateX(-100%)) its blur/offset still
+     bled a faint vertical glow in at the viewport's left edge even while "closed". Scoped here
+     instead, it only exists once the drawer has actually translated back on-screen to cast it. */
+  .sg-toc.sg-toc-mobile-open,
+  .sg-toc.sg-toc-collapsed.sg-toc-mobile-open,
+  html.sg-toc-pref-collapsed .sg-toc.sg-toc-mobile-open {
+    transform: translateX(0);
+    box-shadow: 6px 0 20px rgba(0, 0, 0, 0.3);
+  }
+  .sg-toc-body,
+  .sg-toc.sg-toc-collapsed .sg-toc-body,
+  html.sg-toc-pref-collapsed .sg-toc-body {
+    display: block;
+  }
+  .sg-toc-rail,
+  .sg-toc.sg-toc-collapsed .sg-toc-rail,
+  html.sg-toc-pref-collapsed .sg-toc-rail {
+    align-items: stretch;
+    /* Extra top padding clears the floating .sg-toc-topbar docked at the drawer's top-left
+       (close X, plus info/theme once relocated there) — without it, "Collapse Sub-sections"
+       (now the rail's first visible button on mobile) sits directly underneath and visibly
+       collides with it. Topbar height doesn't change when info/theme are added next to X —
+       same .sg-btn-icon button height throughout — so this clearance covers both states. */
+    padding: 3.5rem 1rem 0.5rem;
+  }
+
+  /* Header row: hamburger + title + controls all stay on one line. The title is the only
+     flexible element (hamburger and controls keep their natural size), and it truncates with
+     an ellipsis rather than wrapping or shrinking indefinitely — without min-width:0 + the
+     overflow trio here, the title's intrinsic content width wins the flex negotiation and
+     pushes the info/theme buttons off the right edge of the viewport entirely (verified via a
+     390px headless screenshot: the controls were clipped past the edge, not just visually
+     tight). */
+  .sg-header-row { flex-wrap: nowrap; gap: 0.6rem; }
+  .sg-mobile-menu-btn, .sg-controls { flex: 0 0 auto; }
+  .sg-title {
+    font-size: 1.15rem;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .sg-main { padding-top: 1.5rem; }
+  .sg-main-wrap { min-width: 0; }
+
+  /* Prose/table/figure columns already go full-width via .sg-main's own clamp() padding —
+     nothing extra needed here — but multi-panel diagram rows benefit from stacking instead of
+     squeezing 2-3 panels into a ~340px column. */
+  .sg-diagram-row { flex-direction: column; }
+  .sg-figure-row { flex-direction: column; align-items: center; }
+}
+
+/* Tap-to-fullscreen lightbox for content photos (initLightbox() in script.js, wired to every
+   img inside .sg-main). Deliberately theme-independent — a near-opaque black backdrop regardless
+   of light/dark mode is the standard lightbox convention and gives the photo maximum contrast
+   either way, so this block reads off plain white/black rather than the --bg/--text variables
+   the rest of the page uses.
+
+   Built as a one-slide-or-many scroll-snap track (same swipe mechanism as the inline
+   .sg-carousel above, just full-screen), not a single fixed <img> — a single-photo POI is simply
+   a track with one slide (dots/arrows hidden via [data-count="1"]), so this is one mechanism
+   for both cases, not two. */
+.sg-lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  /* Must outrank any guide's own custom fullscreen overlay (the Trip Map's CSS-only fullscreen
+     class sits at z-index: 1000) — the lightbox is meant to be the single topmost UI layer on
+     any guide page, full stop. position:fixed + a non-auto z-index here establishes its own
+     stacking context, so this one number is enough to raise the whole lightbox (including its
+     301-level internal controls below) as a unit; they don't each need bumping individually. */
+  z-index: 2000;
+  background: rgba(0, 0, 0, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease;
+}
+.sg-lightbox-overlay.sg-lightbox-open {
+  opacity: 1;
+  visibility: visible;
+}
+.sg-lightbox-track {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  cursor: zoom-out;
+}
+.sg-lightbox-track::-webkit-scrollbar { display: none; }
+.sg-lightbox-slide {
+  flex: 0 0 100%;
+  scroll-snap-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 3.5rem 1.25rem 1.5rem;
+  box-sizing: border-box;
+  /* Each slide is a <figure>, which also matches the generic figure{} rule elsewhere in this
+     file (margin: 1.5rem auto; max-width: 640px). That rule doesn't set flex/padding/etc., so
+     it doesn't lose the cascade outright -- but it DOES still win on the properties it sets and
+     this rule doesn't override: max-width and margin. The result on any viewport wider than
+     640px: flex-basis 100% first resolves against the true viewport width, then max-width caps
+     the rendered slide back down to 640px anyway, so 3 slides of 640px each fit side by side in
+     a 1280px+ viewport instead of one filling the screen -- exactly the "images overlap" bug
+     Clayton caught. Reset both explicitly so nothing leaks in from the unrelated base rule. */
+  max-width: none;
+  margin: 0;
+}
+.sg-lightbox-img {
+  max-width: 92vw;
+  max-height: 78vh;
+  object-fit: contain;
+  border-radius: 6px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+  /* Otherwise inherits cursor:zoom-in from the base figure img{} rule (correct out in the
+     article, wrong here — this image is already maximized, clicking it closes/zooms out). */
+  cursor: zoom-out;
+}
+.sg-lightbox-caption {
+  color: #f0f0f0;
+  text-align: center;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  max-width: 640px;
+  cursor: auto;
+}
+.sg-lightbox-arrow {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 1.6rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 301;
+}
+.sg-lightbox-arrow:hover { background: rgba(255, 255, 255, 0.22); }
+.sg-lightbox-arrow.sg-lightbox-prev { left: 1rem; }
+.sg-lightbox-arrow.sg-lightbox-next { right: 1rem; }
+.sg-lightbox-overlay[data-count="1"] .sg-lightbox-arrow,
+.sg-lightbox-overlay[data-count="1"] .sg-lightbox-dots {
+  display: none;
+}
+.sg-lightbox-dots {
+  position: fixed;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.5rem;
+  z-index: 301;
+}
+.sg-lightbox-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  padding: 0;
+  background: rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+}
+.sg-lightbox-dot.active { background: #fff; }
+.sg-lightbox-close {
+  position: fixed;
+  top: 0.9rem;
+  right: 1rem;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 1.6rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.sg-lightbox-close:hover { background: rgba(255, 255, 255, 0.22); }
+
+/* ---------- Trip Map (GIS-style overview map, "Trip Map" section) ---------- */
+/* Promoted here 2026-08-23 after the second guide (Germany Trip 2027) wanted one — first built
+   as a one-off in "Italy Trip 2026 - Travel Companion.html". Renders via Leaflet (loaded by the
+   guide itself, not a shared dependency — see script.js's initTripMap() for why) reading a
+   #sg-tripmap-data JSON island of points plus a #sg-tripmap-config JSON island of route order /
+   per-leg dates; a guide with neither element simply never calls this and pays nothing for it. */
+.sg-tripmap { margin-top: 1rem; }
+.sg-tripmap-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.6rem;
+}
+.sg-tripmap-legend { display: flex; flex-wrap: wrap; gap: 0.9rem; font-size: 0.85rem; color: var(--text-dim); }
+.sg-tripmap-legend-item { display: inline-flex; align-items: center; gap: 0.4rem; }
+.sg-tripmap-toolbar-actions { display: flex; align-items: center; gap: 0.4rem; flex: none; }
+/* Legend chips double as filter toggles — real <button>s (not <span>s) so they're
+   keyboard/screen-reader operable, reset to plain text-button chrome, with a dimmed
+   "--off" state that mirrors visually what's currently hidden on the map itself. */
+.sg-tripmap-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: none;
+  border: none;
+  margin: -0.2rem -0.35rem;
+  padding: 0.2rem 0.35rem;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+.sg-tripmap-filter:hover { background: var(--accent-soft); }
+.sg-tripmap-filter[aria-pressed="false"] { opacity: 0.4; }
+.sg-tripmap-filter[aria-pressed="false"] .sg-tripmap-swatch { filter: grayscale(1); }
+.sg-tripmap-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex: none;
+}
+.sg-tripmap-swatch .sg-icon { width: 0.7em; height: 0.7em; stroke-width: 2.75; }
+.sg-tripmap-swatch--stay { background: var(--accent); }
+.sg-tripmap-swatch--restaurant { background: var(--map-food); }
+.sg-tripmap-swatch--poi { background: var(--map-poi); }
+.sg-tripmap-swatch--terminal { background: var(--map-terminal); }
+.sg-tripmap-canvas {
+  width: 100%;
+  height: clamp(360px, 55vh, 560px);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  background: var(--code-bg);
+}
+/* Leaflet's own panes/controls run z-index up to 1000 (leaflet.css), and .leaflet-container
+   is only position:relative with no z-index of its own — so without this, those panes
+   aren't trapped in a local stacking context and escape straight into the page's root
+   stacking order, rendering above the mobile TOC drawer (z-index 60) whenever it's open.
+   Giving the container an explicit z-index (any value, including 0) makes it establish its
+   own stacking context, containing everything Leaflet draws inside it. */
+#sg-tripmap-canvas.leaflet-container { z-index: 0; }
+/* "Fullscreen" is a CSS-only fixed-position overlay, not the real Fullscreen API — iOS
+   Safari doesn't implement Element.requestFullscreen at all (only <video> can go
+   fullscreen there), so a native-API button silently did nothing on iPhone. This class
+   toggle covers the viewport identically on every platform instead. */
+.sg-tripmap.sg-tripmap--fs {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  margin: 0;
+  padding: max(0.75rem, env(safe-area-inset-top)) max(0.75rem, env(safe-area-inset-right))
+    max(0.75rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
+  background: var(--bg-elevated);
+}
+.sg-tripmap.sg-tripmap--fs .sg-tripmap-canvas {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+}
+body.sg-tripmap-fs-lock { overflow: hidden; }
+.sg-tripmap-hint { color: var(--text-dim); font-size: 0.9rem; }
+
+/* Marker pins — plain circular badges (anchor = exact center) rather than teardrop pins, so
+   there's no anchor-offset math to get wrong. Stays are drawn larger and given a heavier
+   white ring so the home-base "spine" of the route stands out from the sights/restaurants
+   around them. */
+.sg-tripmap-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #fff;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+.sg-tripmap-pin .sg-icon { stroke-width: 2.5; }
+.sg-tripmap-pin--stay { background: var(--accent); width: 34px; height: 34px; border-width: 3px; }
+.sg-tripmap-pin--stay .sg-icon { width: 18px; height: 18px; }
+.sg-tripmap-pin--restaurant { background: var(--map-food); width: 24px; height: 24px; }
+.sg-tripmap-pin--restaurant .sg-icon { width: 13px; height: 13px; }
+.sg-tripmap-pin--poi { background: var(--map-poi); width: 22px; height: 22px; }
+.sg-tripmap-pin--poi .sg-icon { width: 12px; height: 12px; }
+.sg-tripmap-pin--terminal {
+  background: var(--map-terminal);
+  width: 44px;
+  height: 44px;
+  border-width: 3px;
+  box-shadow: 0 0 0 3px var(--map-terminal), 0 2px 6px rgba(0, 0, 0, 0.55);
+}
+.sg-tripmap-pin--terminal .sg-icon { width: 24px; height: 24px; }
+.sg-tripmap-terminal { position: relative; width: 44px; height: 44px; }
+.sg-tripmap-terminal-label {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 5px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--map-terminal);
+  color: #fff;
+  border: 1.5px solid #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+.sg-tripmap-arrow { color: var(--accent); filter: drop-shadow(0 0 2px var(--bg-elevated)); }
+.sg-tripmap-arrow svg { width: 18px; height: 18px; }
+
+/* Leaflet's own popup chrome ships light-mode-only inline colors — retheme it to match
+   the guide instead of leaving a white card floating in dark mode. overflow:hidden lets
+   the photo strip below bleed to the card's own rounded top corners instead of squaring
+   them off. */
+.leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--bg-elevated); color: var(--text); box-shadow: var(--shadow); overflow: hidden; }
+.leaflet-popup-content { margin: 0.75rem 0.9rem; min-width: 200px; }
+/* Negative-margin bleed to the card's own edges — same trick as the photo strip, cancels
+   .leaflet-popup-content's own margin so the strip reaches the (now-clipped) rounded
+   corners instead of sitting inset with a visible gap on all four sides. */
+.sg-tripmap-popup-photos {
+  display: grid;
+  gap: 2px;
+  margin: -0.75rem -0.9rem 0.6rem;
+}
+.sg-tripmap-popup-photos[data-count="1"] { grid-template-columns: 1fr; }
+.sg-tripmap-popup-photos[data-count="2"] { grid-template-columns: 1fr 1fr; }
+.sg-tripmap-popup-photo { position: relative; display: block; aspect-ratio: 4 / 3; overflow: hidden; background: var(--code-bg); }
+.sg-tripmap-popup-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sg-tripmap-popup-photo-more {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+.sg-tripmap-popup-kind { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-dim); }
+.sg-tripmap-popup-name { font-weight: 700; margin: 0.15rem 0 0.3rem; }
+.sg-tripmap-popup-city { font-size: 0.82rem; color: var(--text-dim); margin-bottom: 0.4rem; }
+.sg-tripmap-popup-dates { font-size: 0.82rem; color: var(--text-dim); margin-bottom: 0.4rem; }
+.sg-tripmap-popup-link { font-size: 0.85rem; }
+.leaflet-container { background: var(--code-bg); font-family: inherit; }
+.leaflet-control-attribution { background: var(--bg-elevated); color: var(--text-dim); }
+.leaflet-control-attribution a { color: var(--text-dim); }
+.leaflet-control-zoom a { background: var(--bg-elevated); color: var(--text); border-color: var(--border) !important; }
+.leaflet-control-zoom a:hover { background: var(--accent-soft); }
+.sg-tripmap-fullscreen-btn.sg-btn { background: var(--bg-elevated); }
+
+@media print {
+  .sg-toc, .sg-controls, .sg-back-to-top, .sg-lightbox-overlay { display: none !important; }
+  .sg-header { position: static; box-shadow: none; }
+  .sg-main { padding: 0; }
+  a { color: inherit; text-decoration: none; }
+}
