@@ -821,15 +821,45 @@
     // the room) and grows back as soon as you scroll up or return to the very top. Scale only
     // (style.css), so layout — and therefore the lens's offset math — is unaffected. A small
     // dead-zone (6px) keeps finger jitter and momentum wobble from flickering it.
-    var lastY = window.pageYOffset, ticking = false;
+    // The shrink is only for scrolling YOU do by dragging/wheeling the page. Scrolling the bar
+    // itself starts (Next/Prev/Home/Map all scroll the page) must never shrink it, and neither
+    // should merely touching it — so a press on the bar "claims" the scroll: it un-shrinks the
+    // bar and suppresses shrinking until that scroll goes quiet (200ms without a scroll event,
+    // or 600ms if the tap didn't scroll at all). Touching/wheeling the page itself hands control
+    // straight back, so the very next manual scroll shrinks it as normal.
+    var lastY = window.pageYOffset, ticking = false, barDriven = false, idleT = null;
+    function barIdle(ms) {
+      clearTimeout(idleT);
+      idleT = setTimeout(function () { barDriven = false; lastY = window.pageYOffset; }, ms);
+    }
+    function claimScroll() {
+      barDriven = true;
+      bar.classList.remove("sg-tabbar-compact");
+      barIdle(600);
+    }
+    bar.addEventListener("pointerdown", claimScroll);
+    bar.addEventListener("click", claimScroll);
+    function releaseToUser(e) {
+      if (bar.contains(e.target)) return;
+      barDriven = false;
+      clearTimeout(idleT);
+      lastY = window.pageYOffset;
+    }
+    document.addEventListener("touchstart", releaseToUser, { passive: true });
+    document.addEventListener("wheel", releaseToUser, { passive: true });
     window.addEventListener("scroll", function () {
       if (ticking) return;
       ticking = true;
       window.requestAnimationFrame(function () {
         var y = window.pageYOffset, dy = y - lastY;
-        if (y <= 40 || dy < -6) bar.classList.remove("sg-tabbar-compact");
-        else if (dy > 6) bar.classList.add("sg-tabbar-compact");
-        if (Math.abs(dy) > 6 || y <= 40) lastY = y;
+        if (barDriven) {
+          lastY = y;
+          barIdle(200); // still moving under the bar's own steam; wait for it to settle
+        } else {
+          if (y <= 40 || dy < -6) bar.classList.remove("sg-tabbar-compact");
+          else if (dy > 6) bar.classList.add("sg-tabbar-compact");
+          if (Math.abs(dy) > 6 || y <= 40) lastY = y;
+        }
         ticking = false;
       });
     }, { passive: true });
