@@ -1212,16 +1212,60 @@
     var wrap = document.getElementById("sg-tripmap");
     var fsBtn = document.getElementById("sg-tripmap-fullscreen");
     var fsActive = false;
+    var fsBusy = false, fsHold = null;
 
     function setFullscreen(active) {
+      // Ignore taps/Escape while a transition is running, and no-op repeats.
+      if (fsBusy || active === fsActive) return;
       fsActive = active;
-      wrap.classList.toggle("sg-tripmap--fs", active);
-      document.body.classList.toggle("sg-tripmap-fs-lock", active);
       if (fsBtn) {
         fsBtn.querySelector("use").setAttribute("href", active ? "#icon-minimize" : "#icon-maximize");
         fsBtn.title = active ? "Exit fullscreen" : "View map fullscreen";
       }
-      setTimeout(function () { map.invalidateSize(); }, 80);
+      function apply(on) {
+        wrap.classList.toggle("sg-tripmap--fs", on);
+        document.body.classList.toggle("sg-tripmap-fs-lock", on);
+      }
+      function settle() { map.invalidateSize(); setTimeout(function () { map.invalidateSize(); }, 80); }
+      // The overlay is position:fixed, so the map leaves the page flow and everything below it
+      // would jump up. A placeholder holds its space, and doubles as the target rect for the
+      // exit animation. The transition itself is a clip-path reveal between the map's in-page
+      // rect and the full viewport, so the map's contents are never scaled or distorted.
+      function clipFor(r) {
+        var vw = document.documentElement.clientWidth, vh = window.innerHeight;
+        return "inset(" + r.top + "px " + (vw - r.right) + "px " + (vh - r.bottom) + "px " + r.left + "px round 14px)";
+      }
+      var FULL = "inset(0px 0px 0px 0px round 0px)";
+      var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (reduce || !wrap.animate) {
+        apply(active); settle(); return;
+      }
+      var opts = { duration: 380, easing: "cubic-bezier(0.32, 0.72, 0, 1)" };
+      fsBusy = true;
+      if (active) {
+        var r = wrap.getBoundingClientRect(), cs = getComputedStyle(wrap);
+        fsHold = document.createElement("div");
+        fsHold.style.cssText = "height:" + r.height + "px;margin:" + cs.marginTop + " 0 " + cs.marginBottom + ";";
+        wrap.parentNode.insertBefore(fsHold, wrap);
+        apply(true);
+        map.invalidateSize();
+        wrap.animate([{ clipPath: clipFor(r) }, { clipPath: FULL }], opts).onfinish = function () {
+          fsBusy = false; settle();
+        };
+      } else {
+        var target = fsHold ? fsHold.getBoundingClientRect() : wrap.getBoundingClientRect();
+        var out = wrap.animate([{ clipPath: FULL }, { clipPath: clipFor(target) }], Object.assign({ fill: "forwards" }, opts));
+        out.onfinish = function () {
+          // fill:forwards held the shrunken clip until now; it is in viewport coords, so it must go
+          // before the map is back in the page flow or it would clip the in-page map.
+          out.cancel();
+          apply(false);
+          if (fsHold) { fsHold.remove(); fsHold = null; }
+          // The fullscreen layout snaps to the in-page layout here; a short fade hides the swap.
+          wrap.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: "ease-out" });
+          fsBusy = false; settle();
+        };
+      }
     }
 
     if (fsBtn) {
